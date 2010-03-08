@@ -1,10 +1,9 @@
-#include "std2.h"
+#include "std2priv.h"
 #include <fnmatch.h>
 #include <assert.h>
 
-static void wrap_fnmatch(void* ret, void* const * args, int n)
+static void wrap_fnmatch(void* ret, void* const * args)
 {
-    assert(n == 3);
     *(int*)ret = fnmatch((const char*)args[0], (const char*)args[1], *(int*)args[2]);
 }
 
@@ -17,7 +16,7 @@ STD2_BEGIN_CONST_LIST(fnmatch)
     STD2_CONST("PERIOD",      INT, FNM_PERIOD)
     STD2_CONST("FILE_NAME",   INT, FNM_FILE_NAME)
     STD2_CONST("LEADING_DIR", INT, FNM_LEADING_DIR)
-    STD2_CONST("EXTMATCH",    INT, FNM_EXTMATCH)
+//    STD2_CONST("EXTMATCH",    INT, FNM_EXTMATCH)
     STD2_CONST("NOMATCH",     INT, FNM_NOMATCH)
 STD2_END_CONST_LIST()
 

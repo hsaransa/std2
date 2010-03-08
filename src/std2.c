@@ -1,15 +1,17 @@
-#include "std2.h"
+#include "std2priv.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
 
 extern const struct std2_module std2_module_fnmatch;
 extern const struct std2_module std2_module_libc;
+extern const struct std2_module std2_module_iconv;
 extern const struct std2_module std2_module_sdl;
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
     &std2_module_libc,
+    &std2_module_iconv,
 #ifdef STD2_SDL
     &std2_module_sdl,
 #endif
@@ -245,11 +247,11 @@ struct std2_param std2_get_return_type(int mod, int func)
     return param;
 }
 
-void std2_call(int mod, int func, void* ret, void* const * args, int n)
+void std2_call(int mod, int func, void* ret, void* const * args)
 {
     const struct std2_function* f = get_function(mod, func);
 
-    f->func(ret, args, n);
+    f->func(ret, args);
 }
 
 void std2_unrefer(int mod, int clas, void* ptr)

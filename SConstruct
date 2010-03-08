@@ -16,9 +16,8 @@ src += [env.StaticObject('src/libc.c')]
 #env.Append(LIBS=['SDL'])
 #src += [env.StaticObject('sdl.c', CPPPATH=['/usr/include/SDL'])]
 
-#env.Append(CPPDEFINES=[("STD2_ICONV", 1)])
-#env.Append(LIBS=['iconv'])
-#src += [env.StaticObject('iconv.c')]
+env.Append(CPPDEFINES=[("STD2_ICONV", 1)])
+src += [env.StaticObject('src/iconv.c')]
 
 env.StaticLibrary('std2', src)
 

@@ -2,6 +2,7 @@
 
 env = Environment()
 env.Append(CPPFLAGS=['-g', '-Wall', '-W'])
+env.Append(CPPPATH=['include'])
 
 src = ['src/std2.c']
 

@@ -28,7 +28,7 @@ enum std2_param_type
     STD2_C_STRING,  // "cs"
     STD2_BUF_PTR,   // "buf"
     STD2_BUF_SIZE,  // always after BUF_PTR
-    STD2_INSTANCE,  // module.class
+    STD2_INSTANCE,  // module.class or just class to refer current module
 };
 
 struct std2_param
@@ -53,6 +53,9 @@ int  std2_find_function(int m, const char* name);
 int                 std2_get_param_count(int m, int f);
 struct std2_param   std2_get_param_type(int m, int f, int i);
 struct std2_param   std2_get_return_type(int m, int f);
+
+enum std2_const_type    std2_get_const_type(int m, int c);
+const void*             std2_get_const(int m, int c);
 
 void std2_call(int mod, int func, void* ret, void* const * args);
 void std2_unrefer(int mod, int clas, void* ptr);

@@ -59,7 +59,21 @@ int main()
 
             for (int k = 0; k < n2; k++)
             {
-                std::cerr << "    " << names2[k] << '\n';
+                std::cerr << "    " << names2[k];
+
+                if (j == 1)
+                {
+                    int c = std2_find_const(m, names2[k]);
+                    enum std2_const_type t = std2_get_const_type(m, c);
+                    const void* ptr = std2_get_const(m, c);
+                    switch (t)
+                    {
+                    case STD2_CONST_INT:   std::cerr << " = int " << *(const int*)ptr; break;
+                    case STD2_CONST_FLOAT: std::cerr << " = float " << *(const float*)ptr; break;
+                    }
+                }
+
+                std::cerr << '\n';
 
                 if (j == 2)
                 {

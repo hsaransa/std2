@@ -19,6 +19,9 @@ src += [env.StaticObject('src/libc.c')]
 env.Append(CPPDEFINES=[("STD2_ICONV", 1)])
 src += [env.StaticObject('src/iconv.c')]
 
+env.Append(CPPDEFINES=[("STD2_GLOB", 1)])
+src += [env.StaticObject('src/glob.c')]
+
 env.StaticLibrary('std2', src)
 
 env.Program("test", ['src/test.cpp', 'libstd2.a'])

@@ -6,12 +6,18 @@
 extern const struct std2_module std2_module_fnmatch;
 extern const struct std2_module std2_module_libc;
 extern const struct std2_module std2_module_iconv;
+extern const struct std2_module std2_module_glob;
 extern const struct std2_module std2_module_sdl;
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
     &std2_module_libc,
+#ifdef STD2_ICONV
     &std2_module_iconv,
+#endif
+#ifdef STD2_GLOB
+    &std2_module_glob,
+#endif
 #ifdef STD2_SDL
     &std2_module_sdl,
 #endif
@@ -132,6 +138,17 @@ static const struct std2_class* get_class(int mod, int clas)
     return c;
 }
 
+static const struct std2_const* get_const(int mod, int cons)
+{
+    assert(mod >= 0);
+    assert(cons >= 0);
+
+    const struct std2_module* m = modules[mod];
+    const struct std2_const* c = &m->consts[cons];
+
+    return c;
+}
+
 static const char* parse_type(const char* p, int module, struct std2_param* param)
 {
     char buf[64];
@@ -245,6 +262,18 @@ struct std2_param std2_get_return_type(int mod, int func)
     struct std2_param param;
     parse_type(f->ret, mod, &param);
     return param;
+}
+
+enum std2_const_type std2_get_const_type(int m, int c)
+{
+    const struct std2_const* cc = get_const(m, c);
+    return cc->type;
+}
+
+const void* std2_get_const(int m, int c)
+{
+    const struct std2_const* cc = get_const(m, c);
+    return &cc->ivalue;
 }
 
 void std2_call(int mod, int func, void* ret, void* const * args)

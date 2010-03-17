@@ -76,9 +76,9 @@ STD2_BEGIN_FUNC_LIST(posix)
     STD2_FUNC("stat_blksize", "i",      "stat",     wrap_stat_blksize)
     STD2_FUNC("stat_blocks",  "i",      "stat",     wrap_stat_blocks)
     */
-    STD2_FUNC("stat_atime",   "ll",     "stat",     wrap_stat_atime)
-    STD2_FUNC("stat_mtime",   "ll",     "stat",     wrap_stat_mtime)
-    STD2_FUNC("stat_ctime",   "ll",     "stat",     wrap_stat_ctime)
+    STD2_FUNC("stat_atime",   "l",     "stat",     wrap_stat_atime)
+    STD2_FUNC("stat_mtime",   "l",     "stat",     wrap_stat_mtime)
+    STD2_FUNC("stat_ctime",   "l",     "stat",     wrap_stat_ctime)
 STD2_END_FUNC_LIST()
 
 STD2_MODULE(posix)

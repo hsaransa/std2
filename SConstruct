@@ -12,15 +12,18 @@ src += [env.StaticObject('src/fnmatch.c')]
 env.Append(CPPDEFINES=[("STD2_LIBC", 1)])
 src += [env.StaticObject('src/libc.c')]
 
-#env.Append(CPPDEFINES=[("STD2_SDL", 1)])
-#env.Append(LIBS=['SDL'])
-#src += [env.StaticObject('sdl.c', CPPPATH=['/usr/include/SDL'])]
-
 env.Append(CPPDEFINES=[("STD2_ICONV", 1)])
 src += [env.StaticObject('src/iconv.c')]
 
 env.Append(CPPDEFINES=[("STD2_GLOB", 1)])
 src += [env.StaticObject('src/glob.c')]
+
+env.Append(CPPDEFINES=[("STD2_POSIX", 1)])
+src += [env.StaticObject('src/posix.c')]
+
+#env.Append(CPPDEFINES=[("STD2_SDL", 1)])
+#env.Append(LIBS=['SDL'])
+#src += [env.StaticObject('sdl.c', CPPPATH=['/usr/include/SDL'])]
 
 env.StaticLibrary('std2', src)
 

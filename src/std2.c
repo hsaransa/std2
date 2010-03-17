@@ -8,6 +8,7 @@ extern const struct std2_module std2_module_libc;
 extern const struct std2_module std2_module_iconv;
 extern const struct std2_module std2_module_glob;
 extern const struct std2_module std2_module_sdl;
+extern const struct std2_module std2_module_stat;
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -20,6 +21,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_SDL
     &std2_module_sdl,
+#endif
+#ifdef STD2_STAT
+    &std2_module_stat,
 #endif
     0
 };

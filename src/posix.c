@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <limits.h>
 
 static void free_stat(void* ptr)
 {
@@ -13,6 +14,14 @@ static void wrap_fork(void* ret, void * const* args)
 {
     (void)args;
     *(int*)ret = fork();
+}
+
+static void wrap_realpath(void* ret, void * const* args)
+{
+    static char path[PATH_MAX+1];
+    char* ptr;
+    ptr = realpath(args[0], path);
+    *(void**)ret = ptr;
 }
 
 static void wrap_stat(void* ret, void* const* args)
@@ -56,10 +65,14 @@ STD2_BEGIN_CLASS_LIST(posix)
 STD2_END_CLASS_LIST()
 
 STD2_BEGIN_CONST_LIST(posix)
+    STD2_CONST("PATH_MAX", INT, PATH_MAX)
 STD2_END_CONST_LIST()
 
 STD2_BEGIN_FUNC_LIST(posix)
     STD2_FUNC("fork",         "i",      "",         wrap_fork)
+
+    STD2_FUNC("realpath",     "cs",     "cs",       wrap_realpath)
+
     STD2_FUNC("stat",         "stat",   "cs",       wrap_stat)
     /* TODO: implement the rest, I only needed mtime just right now */
     /*

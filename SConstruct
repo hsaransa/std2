@@ -21,6 +21,9 @@ src += [env.StaticObject('src/glob.c')]
 env.Append(CPPDEFINES=[("STD2_POSIX", 1)])
 src += [env.StaticObject('src/posix.c')]
 
+env.Append(CPPDEFINES=[("STD2_INOTIFY", 1)])
+src += [env.StaticObject('src/inotify.c')]
+
 #env.Append(CPPDEFINES=[("STD2_SDL", 1)])
 #env.Append(LIBS=['SDL'])
 #src += [env.StaticObject('sdl.c', CPPPATH=['/usr/include/SDL'])]

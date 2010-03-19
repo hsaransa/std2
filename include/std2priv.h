@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+typedef void (*std2_unrefer_func)(void* ptr);
+typedef void (*std2_func)(void* ret, void* const * args);
+
 struct std2_class
 {
     const char*         name;
@@ -51,6 +54,8 @@ struct std2_module
 #define STD2_MODULE(name) \
 const struct std2_module std2_module_##name = \
 { #name, class_list_##name, const_list_##name, func_list_##name };
+
+void std2_yield_callback(struct std2_callback* cb);
 
 #ifdef __cplusplus
 }

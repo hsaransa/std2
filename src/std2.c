@@ -9,6 +9,7 @@ extern const struct std2_module std2_module_iconv;
 extern const struct std2_module std2_module_glob;
 extern const struct std2_module std2_module_sdl;
 extern const struct std2_module std2_module_posix;
+extern const struct std2_module std2_module_inotify;
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -24,6 +25,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_POSIX
     &std2_module_posix,
+#endif
+#ifdef STD2_INOTIFY
+    &std2_module_inotify,
 #endif
     0
 };
@@ -280,16 +284,38 @@ const void* std2_get_const(int m, int c)
     return &cc->ivalue;
 }
 
-void std2_call(int mod, int func, void* ret, void* const * args)
+static int num_callbacks;
+static struct std2_callback callbacks[16];
+
+void std2_yield_callback(struct std2_callback* cb)
+{
+    assert(num_callbacks < 16);
+    if (num_callbacks >= 16)
+        return;
+    callbacks[num_callbacks++] = *cb;
+}
+
+int std2_call(int mod, int func, void* ret, void* const * args)
 {
     const struct std2_function* f = get_function(mod, func);
 
+    num_callbacks = 0;
+
     f->func(ret, args);
+
+    return num_callbacks;
 }
 
-void std2_unrefer(int mod, int clas, void* ptr)
+int std2_unrefer(int mod, int clas, void* ptr)
 {
     std2_unrefer_func f = get_class(mod, clas)->unrefer;
+    num_callbacks = 0;
     if (f)
         f(ptr);
+    return num_callbacks;
+}
+
+struct std2_callback std2_get_callback(int i)
+{
+    return callbacks[i];
 }

@@ -17,11 +17,7 @@ struct inotify
 
 static void free_inotify(void* ptr)
 {
-    struct std2_callback cb;
-    cb.type = STD2_RM_FD;
-    cb.fd = *(int*)ptr;
-    std2_yield_callback(&cb);
-
+    // TODO: what if we are inside a callback?
     close(((struct inotify*)ptr)->fd);
     free(ptr);
 }
@@ -92,7 +88,6 @@ static void wrap_read(void* ret, void* const * args)
     struct inotify* p = args[0];
 
     struct std2_callback cb;
-    cb.type = STD2_FD;
     cb.flags = STD2_CALLBACK_READ;
     cb.fd = p->fd;
     cb.user = p;

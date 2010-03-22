@@ -10,6 +10,7 @@ extern const struct std2_module std2_module_glob;
 extern const struct std2_module std2_module_sdl;
 extern const struct std2_module std2_module_posix;
 extern const struct std2_module std2_module_inotify;
+extern const struct std2_module std2_module_readline;
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -28,6 +29,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_INOTIFY
     &std2_module_inotify,
+#endif
+#ifdef STD2_READLINE
+    &std2_module_readline,
 #endif
     0
 };
@@ -178,6 +182,8 @@ static const char* parse_type(const char* p, int module, struct std2_param* para
         param->type = STD2_DOUBLE;
     else if (strcmp(buf, "cs") == 0)
         param->type = STD2_C_STRING;
+    else if (strcmp(buf, "ms") == 0)
+        param->type = STD2_M_C_STRING;
     else if (strcmp(buf, "buf") == 0)
         param->type = STD2_BUF_PTR;
     else
@@ -284,38 +290,41 @@ const void* std2_get_const(int m, int c)
     return &cc->ivalue;
 }
 
-static int num_callbacks;
-static struct std2_callback callbacks[16];
+static int has_callback;
+static struct std2_callback callback;
 
 void std2_yield_callback(struct std2_callback* cb)
 {
-    assert(num_callbacks < 16);
-    if (num_callbacks >= 16)
-        return;
-    callbacks[num_callbacks++] = *cb;
+    assert(!has_callback);
+    callback = *cb;
+    has_callback = 1;
 }
 
 int std2_call(int mod, int func, void* ret, void* const * args)
 {
     const struct std2_function* f = get_function(mod, func);
 
-    num_callbacks = 0;
-
+    has_callback = 0;
     f->func(ret, args);
-
-    return num_callbacks;
+    return has_callback;
 }
 
-int std2_unrefer(int mod, int clas, void* ptr)
+void std2_unrefer(int mod, int clas, void* ptr)
 {
     std2_unrefer_func f = get_class(mod, clas)->unrefer;
-    num_callbacks = 0;
     if (f)
         f(ptr);
-    return num_callbacks;
 }
 
-struct std2_callback std2_get_callback(int i)
+struct std2_callback std2_get_callback()
 {
-    return callbacks[i];
+    assert(has_callback);
+    return callback;
+}
+
+int std2_call_callback(struct std2_callback* cb, void* ret, int mask)
+{
+    has_callback = 0;
+    cb->func(ret, cb->fd, mask, cb->user);
+    return has_callback;
 }

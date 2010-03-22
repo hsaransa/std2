@@ -24,6 +24,10 @@ src += [env.StaticObject('src/posix.c')]
 env.Append(CPPDEFINES=[("STD2_INOTIFY", 1)])
 src += [env.StaticObject('src/inotify.c')]
 
+env.Append(CPPDEFINES=[("STD2_READLINE", 1)])
+src += [env.StaticObject('src/readline.c')]
+env.Append(LIBS=['readline'])
+
 #env.Append(CPPDEFINES=[("STD2_SDL", 1)])
 #env.Append(LIBS=['SDL'])
 #src += [env.StaticObject('sdl.c', CPPPATH=['/usr/include/SDL'])]

@@ -8,7 +8,7 @@ extern "C" {
 
 typedef int             std2_int32;
 typedef long long int   std2_int64;
-typedef int           (*std2_callback_func)(void*, int fd, int mask, void*);
+typedef void          (*std2_callback_func)(void*, int fd, int mask, void*);
 
 enum std2_const_type
 {
@@ -18,15 +18,16 @@ enum std2_const_type
 
 enum std2_param_type
 {
-    STD2_VOID,      // empty
-    STD2_INT32,     // "i"
-    STD2_INT64,     // "l"
-    STD2_FLOAT,     // "f"
-    STD2_DOUBLE,    // "d"
-    STD2_C_STRING,  // "cs"
-    STD2_BUF_PTR,   // "buf"
-    STD2_BUF_SIZE,  // always after BUF_PTR
-    STD2_INSTANCE,  // module.class or just class to refer current module
+    STD2_VOID,        // empty
+    STD2_INT32,       // "i"
+    STD2_INT64,       // "l"
+    STD2_FLOAT,       // "f"
+    STD2_DOUBLE,      // "d"
+    STD2_C_STRING,    // "cs"
+    STD2_M_C_STRING,  // "ms", malloced c string, call free() for this
+    STD2_BUF_PTR,     // "buf"
+    STD2_BUF_SIZE,    // always after BUF_PTR
+    STD2_INSTANCE,    // module.class or just class to refer current module
 };
 
 struct std2_param
@@ -36,23 +37,17 @@ struct std2_param
     int class_id;
 };
 
-enum std2_callback_type
-{
-    STD2_FD,
-    STD2_RM_FD
-    // TODO: sleeping
-};
-
-#define STD2_CALLBACK_READ         1
-#define STD2_CALLBACK_WRITE        2
-#define STD2_CALLBACK_ERROR        4
-#define STD2_CALLBACK_DELAY_RETURN 8
+#define STD2_CALLBACK_READ          1
+#define STD2_CALLBACK_WRITE         2
+#define STD2_CALLBACK_ERROR         4
+#define STD2_CALLBACK_TIMEOUT       8
+#define STD2_CALLBACK_ABORT         16
 
 struct std2_callback
 {
-    enum std2_callback_type type;
     int flags;
     int fd;
+    int timeout; // ms
     void* user;
     std2_callback_func func;
 };
@@ -79,11 +74,12 @@ struct std2_param   std2_get_return_type(int m, int f);
 enum std2_const_type    std2_get_const_type(int m, int c);
 const void*             std2_get_const(int m, int c);
 
-// Returns number of callbacks it yielded.
+// Returns 1 if return value is returned by a callback.
 int std2_call(int mod, int func, void* ret, void* const * args);
-int std2_unrefer(int mod, int clas, void* ptr);
+int std2_call_callback(struct std2_callback* cb, void* ret, int mask);
+void std2_unrefer(int mod, int clas, void* ptr);
 
-struct std2_callback std2_get_callback(int i);
+struct std2_callback std2_get_callback();
 
 #ifdef __cplusplus
 }

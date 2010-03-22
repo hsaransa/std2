@@ -11,6 +11,7 @@ static void print_type(struct std2_param& p)
     case STD2_FLOAT: std::cerr << "float"; break;
     case STD2_DOUBLE: std::cerr << "double"; break;
     case STD2_C_STRING: std::cerr << "c_string"; break;
+    case STD2_M_C_STRING: std::cerr << "m_c_string"; break;
     case STD2_BUF_PTR: std::cerr << "buf_ptr"; break;
     case STD2_BUF_SIZE: std::cerr << "buf_size"; break;
     case STD2_INSTANCE: std::cerr << "instance " << p.module_id << "/" << p.class_id; break;

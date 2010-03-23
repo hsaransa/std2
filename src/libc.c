@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 /*
  * structs
@@ -93,6 +94,27 @@ static void wrap_strptime(void* ret, void* const * args)
 }
 #endif
 
+#define INT_TO_INT_WRAP(x) \
+static void wrap_##x(void* ret, void* const* args) { \
+    *(int*)ret = x(*(int*)args[0]); \
+}
+
+INT_TO_INT_WRAP(isalnum)
+INT_TO_INT_WRAP(isalpha)
+INT_TO_INT_WRAP(isascii)
+INT_TO_INT_WRAP(isblank)
+INT_TO_INT_WRAP(iscntrl)
+INT_TO_INT_WRAP(isdigit)
+INT_TO_INT_WRAP(isgraph)
+INT_TO_INT_WRAP(islower)
+INT_TO_INT_WRAP(isprint)
+INT_TO_INT_WRAP(ispunct)
+INT_TO_INT_WRAP(isspace)
+INT_TO_INT_WRAP(isupper)
+INT_TO_INT_WRAP(isxdigit)
+INT_TO_INT_WRAP(toupper)
+INT_TO_INT_WRAP(tolower)
+
 STD2_BEGIN_FUNC_LIST(libc)
     STD2_FUNC("new_tm",     "tm", "",          wrap_new_tm)
     //STD2_FUNC("set_tm_sec", "tm", "i",         wrap_set_tm_sec)
@@ -102,6 +124,22 @@ STD2_BEGIN_FUNC_LIST(libc)
     STD2_FUNC("localtime",  "tm", "l",         wrap_localtime)
     STD2_FUNC("strftime",   "i",  "buf cs tm", wrap_strftime)
     //STD2_FUNC("strptime",   "cs", "cs cs tm",  wrap_strptime)
+
+    STD2_FUNC("isalnum",    "i", "i", wrap_isalnum)
+    STD2_FUNC("isalpha",    "i", "i", wrap_isalpha)
+    STD2_FUNC("isascii",    "i", "i", wrap_isascii)
+    STD2_FUNC("isblank",    "i", "i", wrap_isblank)
+    STD2_FUNC("iscntrl",    "i", "i", wrap_iscntrl)
+    STD2_FUNC("isdigit",    "i", "i", wrap_isdigit)
+    STD2_FUNC("isgraph",    "i", "i", wrap_isgraph)
+    STD2_FUNC("islower",    "i", "i", wrap_islower)
+    STD2_FUNC("isprint",    "i", "i", wrap_isprint)
+    STD2_FUNC("ispunct",    "i", "i", wrap_ispunct)
+    STD2_FUNC("isspace",    "i", "i", wrap_isspace)
+    STD2_FUNC("isupper",    "i", "i", wrap_isupper)
+    STD2_FUNC("isxdigit",   "i", "i", wrap_isxdigit)
+    STD2_FUNC("toupper",    "i", "i", wrap_toupper)
+    STD2_FUNC("tolower",    "i", "i", wrap_tolower)
 STD2_END_FUNC_LIST()
 
 STD2_MODULE(libc)

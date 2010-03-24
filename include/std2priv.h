@@ -4,6 +4,12 @@
 #include "std2.h"
 
 #ifdef __cplusplus
+#define STD2_EXTERN extern "C"
+#else
+#define STD2_EXTERN
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -45,15 +51,19 @@ struct std2_module
 
 #define STD2_BEGIN_CONST_LIST(name) static const struct std2_const const_list_##name[] = {
 #define STD2_CONST(name, type, ival) { name, STD2_CONST_##type, ival },
-#define STD2_END_CONST_LIST() { 0, 0, 0 } };
+#define STD2_END_CONST_LIST() { 0, STD2_CONST_INT, 0 } };
 
 #define STD2_BEGIN_FUNC_LIST(name) static const struct std2_function func_list_##name[] = {
 #define STD2_FUNC(name, ret, args, func) { name, ret, args, func },
 #define STD2_END_FUNC_LIST() { 0, 0, 0, 0 } };
 
 #define STD2_MODULE(name) \
-const struct std2_module std2_module_##name = \
+STD2_EXTERN const struct std2_module std2_module_##name = \
 { #name, class_list_##name, const_list_##name, func_list_##name };
+
+#define STD2_MODULE_DYN_STUB(name) \
+STD2_EXTERN const struct std2_module std2_module_##name = \
+{ #name, 0, 0, 0 };
 
 void std2_yield_callback(struct std2_callback* cb);
 

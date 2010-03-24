@@ -2,15 +2,18 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <dlfcn.h>
+#include <stdlib.h>
 
 extern const struct std2_module std2_module_fnmatch;
 extern const struct std2_module std2_module_libc;
 extern const struct std2_module std2_module_iconv;
 extern const struct std2_module std2_module_glob;
-extern const struct std2_module std2_module_sdl;
 extern const struct std2_module std2_module_posix;
 extern const struct std2_module std2_module_inotify;
-extern const struct std2_module std2_module_readline;
+STD2_MODULE_DYN_STUB(readline)
+STD2_MODULE_DYN_STUB(sdl)
+STD2_MODULE_DYN_STUB(fltk)
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -21,9 +24,6 @@ static const struct std2_module* modules[] = {
 #ifdef STD2_GLOB
     &std2_module_glob,
 #endif
-#ifdef STD2_SDL
-    &std2_module_sdl,
-#endif
 #ifdef STD2_POSIX
     &std2_module_posix,
 #endif
@@ -33,8 +33,41 @@ static const struct std2_module* modules[] = {
 #ifdef STD2_READLINE
     &std2_module_readline,
 #endif
+#ifdef STD2_SDL
+    &std2_module_sdl,
+#endif
+#ifdef STD2_FLTK
+    &std2_module_fltk,
+#endif
     0
 };
+
+static void load_module(int mod)
+{
+    const struct std2_module* old_m = modules[mod];
+    if (old_m->functions)
+        return;
+
+    char name[128];
+    snprintf(name, sizeof(name), "libstd2_%s.so", old_m->name);
+
+    void* handle = dlopen(name, RTLD_NOW);
+    if (!handle)
+        fprintf(stderr, "%s load error: %s\n", name, dlerror());
+
+    char symname[128];
+    snprintf(symname, sizeof(symname), "std2_module_%s", old_m->name);
+    void* new_m = dlsym(handle, symname);
+    if (!new_m)
+    {
+        fprintf(stderr, "invalid std2 module: %s symbol not found: %s\n", name, symname);
+        abort();
+    }
+
+    modules[mod] = new_m;
+
+    // TODO: handle is leaked (there's now unload support)
+}
 
 void std2_init()
 {
@@ -61,6 +94,7 @@ void std2_list_modules(const char** names, int* count)
     if (!count) \
         return; \
 \
+    load_module(mod); \
     const struct std2_module* m = modules[mod]; \
 \
     int limit = *count; \
@@ -100,6 +134,7 @@ int std2_find_module(const char* name)
 
 int std2_find_class(int module, const char* name)
 {
+    load_module(module);
     const struct std2_module* m = modules[module];
     int i;
     for (i = 0; m->classes[i].name; i++)
@@ -110,6 +145,7 @@ int std2_find_class(int module, const char* name)
 
 int std2_find_const(int module, const char* name)
 {
+    load_module(module);
     const struct std2_module* m = modules[module];
     int i;
     for (i = 0; m->consts[i].name; i++)
@@ -120,6 +156,7 @@ int std2_find_const(int module, const char* name)
 
 int std2_find_function(int module, const char* name)
 {
+    load_module(module);
     const struct std2_module* m = modules[module];
     int i;
     for (i = 0; m->functions[i].name; i++)
@@ -170,7 +207,10 @@ static const char* parse_type(const char* p, int module, struct std2_param* para
     p += i;
 
     if (ret < 1)
+    {
+        param->type = STD2_VOID;
         return 0;
+    }
 
     if (strcmp(buf, "i") == 0)
         param->type = STD2_INT32;

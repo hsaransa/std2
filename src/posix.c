@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <sys/time.h>
 
 static void free_stat(void* ptr)
 {
@@ -60,6 +61,14 @@ static void wrap_stat_ctime(void* ret, void* const* args)
     *(std2_int64*)ret = st->st_ctime;
 }
 
+static void wrap_get_epoch_time(void* ret, void* const* args)
+{
+    (void)args;
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    *(std2_int64*)ret = (std2_int64)tv.tv_sec * 1000000 + (std2_int64)tv.tv_usec;
+}
+
 STD2_BEGIN_CLASS_LIST(posix)
     STD2_CLASS("stat", free_stat)
 STD2_END_CLASS_LIST()
@@ -92,6 +101,8 @@ STD2_BEGIN_FUNC_LIST(posix)
     STD2_FUNC("stat_atime",   "l",     "stat",     wrap_stat_atime)
     STD2_FUNC("stat_mtime",   "l",     "stat",     wrap_stat_mtime)
     STD2_FUNC("stat_ctime",   "l",     "stat",     wrap_stat_ctime)
+
+    STD2_FUNC("get_epoch_time", "l",     "",       wrap_get_epoch_time)
 STD2_END_FUNC_LIST()
 
 STD2_MODULE(posix)

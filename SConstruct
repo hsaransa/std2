@@ -46,6 +46,10 @@ env2 = env.Clone()
 env2.Append(CPPPATH=['/usr/local/cuda/include'])
 env2.SharedLibrary("std2_cuda", ['src/cuda.c'], LIBS=['cuda'])
 
+env.Append(CPPDEFINES=[("STD2_OPENSSL", 1)])
+env2 = env.Clone()
+env2.SharedLibrary("std2_openssl", ['src/openssl.c'], LIBS=['ssl'])
+
 env.StaticLibrary('std2', src)
 
 env.Append(LIBS=['dl'])

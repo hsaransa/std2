@@ -107,6 +107,40 @@ STD2_STRUCT_INT_GETTER(Rect, SDL_Rect, h)
 
 STD2_STRUCT_INT_GETTER(Event, SDL_Event, type)
 
+static SDL_Event* copy_event(SDL_Event* ev)
+{
+    SDL_Event* ev2 = malloc(sizeof(SDL_Event));
+    memcpy(ev2, ev, sizeof(SDL_Event));
+    return ev2;
+}
+
+#define PLOP3(n, a0, a1, a2) \
+static void Event_get_##n(void* ret, void* const* args) { \
+    SDL_Event* ev = args[0]; \
+    if (ev->type == a0 || ev->type == a1 || ev->type == a2) \
+        *(void**)ret = copy_event(ev); \
+    else \
+        *(void**)ret = 0; \
+}
+#define PLOP2(n, a0, a1) PLOP3(n, a0, a1, a1)
+#define PLOP1(n, a0) PLOP3(n, a0, a0, a0)
+
+PLOP1(active, SDL_ACTIVEEVENT)
+PLOP2(key,    SDL_KEYDOWN, SDL_KEYUP)
+PLOP1(motion, SDL_MOUSEMOTION)
+PLOP2(button, SDL_MOUSEBUTTONDOWN, SDL_MOUSEBUTTONUP)
+PLOP1(jaxis,  SDL_JOYAXISMOTION)
+PLOP1(jball,  SDL_JOYBALLMOTION)
+PLOP1(jhat,   SDL_JOYHATMOTION)
+PLOP2(jbutton,SDL_JOYBUTTONDOWN, SDL_JOYBUTTONUP)
+PLOP1(resize, SDL_VIDEORESIZE)
+PLOP1(expose, SDL_VIDEOEXPOSE)
+PLOP1(quit,   SDL_QUIT)
+PLOP1(user,   SDL_USEREVENT) // TODO: others
+PLOP1(syswm,  SDL_SYSWMEVENT)
+
+
+
 STD2_BEGIN_CLASS_LIST(sdl)
     STD2_CLASS("Surface", free_Surface)
     STD2_CLASS("Rect",    free)
@@ -175,6 +209,20 @@ STD2_BEGIN_FUNC_LIST(sdl)
 
     // Event manipulation
     STD2_FUNC("Event_get_type",     "i",       "Event",          Event_get_type)
+
+    STD2_FUNC("Event_get_active", "ActiveEvent",   "Event", Event_get_active)
+    STD2_FUNC("Event_get_key",    "KeyEvent",      "Event", Event_get_key)
+    STD2_FUNC("Event_get_motion", "MotionEvent",   "Event", Event_get_motion)
+    STD2_FUNC("Event_get_button", "ButtonEvent",   "Event", Event_get_button)
+    STD2_FUNC("Event_get_jaxis",  "JoyAxisEvent",  "Event", Event_get_jaxis)
+    STD2_FUNC("Event_get_jball",  "JoyBallEvent",  "Event", Event_get_jball)
+    STD2_FUNC("Event_get_jhat",   "JoyHatEvent",   "Event", Event_get_jhat)
+    STD2_FUNC("Event_get_jbutton","JoyButtonEvent","Event", Event_get_jbutton)
+    STD2_FUNC("Event_get_resize", "ResizeEvent",   "Event", Event_get_resize)
+    STD2_FUNC("Event_get_expose", "ExposeEvent",   "Event", Event_get_expose)
+    STD2_FUNC("Event_get_quit",   "QuitEvent",     "Event", Event_get_quit)
+    STD2_FUNC("Event_get_user",   "UserEvent",     "Event", Event_get_user)
+    STD2_FUNC("Event_get_syswm",  "SysWMEvent",    "Event", Event_get_syswm)
 
     ENUM_FUNCS
     EVENTS_FUNCS

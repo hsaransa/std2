@@ -24,10 +24,19 @@ enum std2_param_type
     STD2_FLOAT,       // "f"
     STD2_DOUBLE,      // "d"
     STD2_C_STRING,    // "cs"
-    STD2_M_C_STRING,  // "ms", malloced c string, call free() for this
+    STD2_M_STRING,    // "ms", malloced c string, call free() for this
+    STD2_C_BUFFER,    // "cb", const buffer, struct std2_buffer
+    STD2_M_BUFFER,    // "mb", malloced buffer, struct std2_buffer
+    // TODO: BUF_PTR and BUF_SIZE are obsolete, remove them!
     STD2_BUF_PTR,     // "buf"
     STD2_BUF_SIZE,    // always after BUF_PTR
     STD2_INSTANCE,    // module.class or just class to refer current module
+};
+
+struct std2_buffer
+{
+    void* data;
+    int size;
 };
 
 struct std2_param

@@ -15,6 +15,7 @@ STD2_MODULE_DYN_STUB(readline)
 STD2_MODULE_DYN_STUB(sdl)
 STD2_MODULE_DYN_STUB(fltk)
 STD2_MODULE_DYN_STUB(cuda)
+STD2_MODULE_DYN_STUB(openssl)
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -42,6 +43,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_CUDA
     &std2_module_cuda,
+#endif
+#ifdef STD2_OPENSSL
+    &std2_module_openssl,
 #endif
     0
 };
@@ -227,7 +231,11 @@ static const char* parse_type(const char* p, int module, struct std2_param* para
     else if (strcmp(buf, "cs") == 0)
         param->type = STD2_C_STRING;
     else if (strcmp(buf, "ms") == 0)
-        param->type = STD2_M_C_STRING;
+        param->type = STD2_M_STRING;
+    else if (strcmp(buf, "cb") == 0)
+        param->type = STD2_C_BUFFER;
+    else if (strcmp(buf, "mb") == 0)
+        param->type = STD2_M_BUFFER;
     else if (strcmp(buf, "buf") == 0)
         param->type = STD2_BUF_PTR;
     else

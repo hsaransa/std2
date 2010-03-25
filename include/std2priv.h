@@ -67,6 +67,8 @@ STD2_EXTERN const struct std2_module std2_module_##name = \
 
 void std2_yield_callback(struct std2_callback* cb);
 
+// Helpers.
+
 #define STD2_STRUCT_INT_SETTER(s, s2, f) \
 static void s##_set_##f(void* ret, void* const* args) { \
     ((s2*)args[0])->f = *(int*)ret; \
@@ -76,7 +78,6 @@ static void s##_set_##f(void* ret, void* const* args) { \
 static void s##_get_##f(void* ret, void* const* args) { \
     *(int*)ret = ((s2*)args[0])->f; \
 }
-
 
 #ifdef __cplusplus
 }

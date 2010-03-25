@@ -15,6 +15,11 @@ static void free_Rect(void* ptr)
     free(ptr);
 }
 
+static void free_Event(void* ptr)
+{
+    free(ptr);
+}
+
 static void wrap_SDL_Init(void* ret, void* const* args)
 {
     *(int*)ret = SDL_Init(*(int*)args[0]);
@@ -44,6 +49,21 @@ static void wrap_SDL_FillRect(void* ret, void* const* args)
 static void wrap_SDL_WM_SetCaption(void* ret, void* const* args)
 {
     SDL_WM_SetCaption(args[0], args[1]);
+}
+
+static void wrap_SDL_PollEvent(void* ret, void* const* args)
+{
+    SDL_Event ev;
+    if (!SDL_PollEvent(&ev))
+    {
+        *(void**)ret = 0;
+        return;
+    }
+
+    SDL_Event* ev2 = malloc(sizeof(SDL_Event));
+    memcpy(ev2, &ev, sizeof(ev));
+
+    *(void**)ret = ev2;
 }
 
 //
@@ -88,32 +108,21 @@ static void Rect_set(void* ret, void* const* args)
     ((SDL_Rect*)args[0])->h = *(int*)args[4];
 }
 
-static void Rect_get_x(void* ret, void* const* args)
-{
-    *(int*)ret = ((SDL_Rect*)args[0])->x;
-}
+STD2_STRUCT_INT_GETTER(Rect, SDL_Rect, x)
+STD2_STRUCT_INT_GETTER(Rect, SDL_Rect, y)
+STD2_STRUCT_INT_GETTER(Rect, SDL_Rect, w)
+STD2_STRUCT_INT_GETTER(Rect, SDL_Rect, h)
 
-static void Rect_get_y(void* ret, void* const* args)
-{
-    *(int*)ret = ((SDL_Rect*)args[0])->y;
-}
-
-static void Rect_get_w(void* ret, void* const* args)
-{
-    *(int*)ret = ((SDL_Rect*)args[0])->w;
-}
-
-static void Rect_get_h(void* ret, void* const* args)
-{
-    *(int*)ret = ((SDL_Rect*)args[0])->h;
-}
+STD2_STRUCT_INT_GETTER(Event, SDL_Event, type)
 
 STD2_BEGIN_CLASS_LIST(sdl)
     STD2_CLASS("Surface", free_Surface)
     STD2_CLASS("Rect",    free_Rect)
+    STD2_CLASS("Event",   free_Event)
 STD2_END_CLASS_LIST()
 
 STD2_BEGIN_CONST_LIST(sdl)
+    // Init flags.
     STD2_CONST("INIT_TIMER", INT, SDL_INIT_TIMER)
     STD2_CONST("INIT_AUDIO", INT, SDL_INIT_AUDIO)
     STD2_CONST("INIT_VIDEO", INT, SDL_INIT_VIDEO)
@@ -122,6 +131,45 @@ STD2_BEGIN_CONST_LIST(sdl)
     STD2_CONST("INIT_NOPARACHUTE", INT, SDL_INIT_NOPARACHUTE)
     STD2_CONST("INIT_EVENTTHREAD", INT, SDL_INIT_EVENTTHREAD)
     STD2_CONST("INIT_EVERYTHING", INT, SDL_INIT_EVERYTHING)
+    // ...
+    STD2_CONST("SWSURFACE", INT, SDL_SWSURFACE)
+    STD2_CONST("HWSURFACE", INT, SDL_HWSURFACE)
+    STD2_CONST("ASYNCBLIT", INT, SDL_ASYNCBLIT)
+    STD2_CONST("ANYFORMAT", INT, SDL_ANYFORMAT)
+    STD2_CONST("HWPALETTE", INT, SDL_HWPALETTE)
+    STD2_CONST("DOUBLEBUF", INT, SDL_DOUBLEBUF)
+    STD2_CONST("FULLSCREEN", INT, SDL_FULLSCREEN)
+    STD2_CONST("OPENGL", INT, SDL_OPENGL)
+    STD2_CONST("OPENGLBLIT", INT, SDL_OPENGLBLIT)
+    STD2_CONST("RESIZABLE", INT, SDL_RESIZABLE)
+    STD2_CONST("NOFRAME", INT, SDL_NOFRAME)
+    // Events.
+    STD2_CONST("NOEVENT", INT, SDL_NOEVENT)
+    STD2_CONST("ACTIVEEVENT", INT, SDL_ACTIVEEVENT)
+    STD2_CONST("KEYDOWN", INT, SDL_KEYDOWN)
+    STD2_CONST("KEYUP", INT, SDL_KEYUP)
+    STD2_CONST("MOUSEMOTION", INT, SDL_MOUSEMOTION)
+    STD2_CONST("MOUSEBUTTONDOWN", INT, SDL_MOUSEBUTTONDOWN)
+    STD2_CONST("MOUSEBUTTONUP", INT, SDL_MOUSEBUTTONUP)
+    STD2_CONST("JOYAXISMOTION", INT, SDL_JOYAXISMOTION)
+    STD2_CONST("JOYBALLMOTION", INT, SDL_JOYBALLMOTION)
+    STD2_CONST("JOYHATMOTION", INT, SDL_JOYHATMOTION)
+    STD2_CONST("JOYBUTTONDOWN", INT, SDL_JOYBUTTONDOWN)
+    STD2_CONST("JOYBUTTONUP", INT, SDL_JOYBUTTONUP)
+    STD2_CONST("QUIT", INT, SDL_QUIT)
+    STD2_CONST("SYSWMEVENT", INT, SDL_SYSWMEVENT)
+    STD2_CONST("EVENT_RESERVEDA", INT, SDL_EVENT_RESERVEDA)
+    STD2_CONST("EVENT_RESERVEDB", INT, SDL_EVENT_RESERVEDB)
+    STD2_CONST("VIDEORESIZE", INT, SDL_VIDEORESIZE)
+    STD2_CONST("VIDEOEXPOSE", INT, SDL_VIDEOEXPOSE)
+    STD2_CONST("EVENT_RESERVED2", INT, SDL_EVENT_RESERVED2)
+    STD2_CONST("EVENT_RESERVED3", INT, SDL_EVENT_RESERVED3)
+    STD2_CONST("EVENT_RESERVED4", INT, SDL_EVENT_RESERVED4)
+    STD2_CONST("EVENT_RESERVED5", INT, SDL_EVENT_RESERVED5)
+    STD2_CONST("EVENT_RESERVED6", INT, SDL_EVENT_RESERVED6)
+    STD2_CONST("EVENT_RESERVED7", INT, SDL_EVENT_RESERVED7)
+    STD2_CONST("USEREVENT", INT, SDL_USEREVENT)
+    STD2_CONST("NUMEVENTS", INT, SDL_NUMEVENTS)
 STD2_END_CONST_LIST()
 
 STD2_BEGIN_FUNC_LIST(sdl)
@@ -129,6 +177,7 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("SetVideoMode",       "Surface", "i i i i",        wrap_SDL_SetVideoMode)
     STD2_FUNC("Flip",               "i",       "Surface",        wrap_SDL_Flip)
     STD2_FUNC("FillRect",           "i",       "Surface Rect i", wrap_SDL_FillRect)
+    STD2_FUNC("PollEvent",          "Event",   "",               wrap_SDL_PollEvent)
     STD2_FUNC("WM_SetCaption",      "",        "cs cs",          wrap_SDL_WM_SetCaption)
 
     // Rect manipulation
@@ -141,6 +190,9 @@ STD2_BEGIN_FUNC_LIST(sdl)
 
     // Surface manipulation
     STD2_FUNC("Surface_set_pixels", "i",       "Surface i buf",  Surface_set_pixels)
+
+    // Event manipulation
+    STD2_FUNC("Event_get_type",     "i",       "Event",          Event_get_type)
 STD2_END_FUNC_LIST()
 
 STD2_MODULE(sdl)

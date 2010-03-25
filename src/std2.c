@@ -49,7 +49,7 @@ static void load_module(int mod)
         return;
 
     char name[128];
-    snprintf(name, sizeof(name), "libstd2_%s.so", old_m->name);
+    snprintf(name, sizeof(name), "%s/libstd2_%s.so", STD2_MODULE_PATH, old_m->name);
 
     void* handle = dlopen(name, RTLD_NOW);
     if (!handle)

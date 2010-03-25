@@ -1,9 +1,14 @@
 # Run scons
 
+import os
+
+modpath = ARGUMENTS.get('modpath', os.getcwd())
+
 env = Environment()
 env.Append(CPPFLAGS=['-g', '-Wall', '-W'])
 env.Append(CPPPATH=['include'])
 env.Append(LINKFLAGS=['-rdynamic'])
+env.Append(CPPDEFINES=[("STD2_MODULE_PATH", '\\"%s\\"' % modpath)])
 
 src = ['src/std2.c']
 

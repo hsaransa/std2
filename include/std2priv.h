@@ -67,6 +67,12 @@ STD2_EXTERN const struct std2_module std2_module_##name = \
 
 void std2_yield_callback(struct std2_callback* cb);
 
+#define STD2_STRUCT_INT_GETTER(s, s2, f) \
+static void s##_get_##f(void* ret, void* const* args) { \
+    *(int*)ret = ((s2*)args[0])->f; \
+}
+
+
 #ifdef __cplusplus
 }
 #endif

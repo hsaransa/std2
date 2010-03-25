@@ -1,5 +1,5 @@
-/* generated!
- * arguments: ['scripts/wrapper.py', '/usr/include/SDL/SDL.h', 'prefix:SDL_', 'enums']
+/* generated: Thu Mar 25 20:22:16 2010
+ * arguments: scripts/gccxml.py /usr/include/SDL/SDL.h prefix:SDL_ enums
  */
 static void audiostatus_to_string(void* ret, void* const* args) {
     const char* s = 0;

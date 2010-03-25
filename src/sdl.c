@@ -2,6 +2,7 @@
 #include "SDL.h"
 #include <assert.h>
 #include "sdl_enums.h"
+#include "sdl_events.h"
 
 static SDL_Surface* screen_surface;
 
@@ -9,16 +10,6 @@ static void free_Surface(void* ptr)
 {
     if (ptr != screen_surface)
         SDL_FreeSurface(ptr);
-}
-
-static void free_Rect(void* ptr)
-{
-    free(ptr);
-}
-
-static void free_Event(void* ptr)
-{
-    free(ptr);
 }
 
 static void wrap_SDL_Init(void* ret, void* const* args)
@@ -118,8 +109,22 @@ STD2_STRUCT_INT_GETTER(Event, SDL_Event, type)
 
 STD2_BEGIN_CLASS_LIST(sdl)
     STD2_CLASS("Surface", free_Surface)
-    STD2_CLASS("Rect",    free_Rect)
-    STD2_CLASS("Event",   free_Event)
+    STD2_CLASS("Rect",    free)
+    STD2_CLASS("Event",   free)
+    STD2_CLASS("ResizeEvent", free)
+    STD2_CLASS("UserEvent", free)
+    STD2_CLASS("KeyboardEvent", free)
+    STD2_CLASS("JoyAxisEvent", free)
+    STD2_CLASS("SysWMEvent", free)
+    STD2_CLASS("MouseButtonEvent", free)
+    STD2_CLASS("MouseMotionEvent", free)
+    STD2_CLASS("ActiveEvent", free)
+    STD2_CLASS("JoyBallEvent", free)
+    STD2_CLASS("JoyButtonEvent", free)
+    STD2_CLASS("JoyHatEvent", free)
+    STD2_CLASS("ExposeEvent", free)
+    STD2_CLASS("QuitEvent", free)
+    STD2_CLASS("keysym", free)
 STD2_END_CLASS_LIST()
 
 STD2_BEGIN_CONST_LIST(sdl)
@@ -146,6 +151,7 @@ STD2_BEGIN_CONST_LIST(sdl)
     STD2_CONST("NOFRAME", INT, SDL_NOFRAME)
 
     ENUM_CONSTS
+    EVENTS_CONSTS
 STD2_END_CONST_LIST()
 
 STD2_BEGIN_FUNC_LIST(sdl)
@@ -171,6 +177,7 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("Event_get_type",     "i",       "Event",          Event_get_type)
 
     ENUM_FUNCS
+    EVENTS_FUNCS
 STD2_END_FUNC_LIST()
 
 STD2_MODULE(sdl)

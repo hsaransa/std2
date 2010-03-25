@@ -14,6 +14,7 @@ extern const struct std2_module std2_module_inotify;
 STD2_MODULE_DYN_STUB(readline)
 STD2_MODULE_DYN_STUB(sdl)
 STD2_MODULE_DYN_STUB(fltk)
+STD2_MODULE_DYN_STUB(cuda)
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -38,6 +39,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_FLTK
     &std2_module_fltk,
+#endif
+#ifdef STD2_CUDA
+    &std2_module_cuda,
 #endif
     0
 };

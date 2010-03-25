@@ -1,11 +1,13 @@
 import os, sys, fnmatch
 import xml.parsers.expat
 
+structs = []
 functions = []
+enums = []
 by_id = {}
 
 def start_element(name, attrs):
-    global fun
+    global fun, enum
     if attrs.has_key('id'):
         by_id[attrs['id']] = (name, attrs)
 
@@ -16,6 +18,14 @@ def start_element(name, attrs):
 
     if name == 'Argument':
         fun['arguments'].append(attrs)
+
+    if name == 'Enumeration':
+        enum = attrs
+        enum['values'] = []
+        enums.append(attrs)
+
+    if name == 'EnumValue':
+        enum['values'].append(attrs)
 
 def execute(cmd):
     if os.system(cmd):
@@ -53,7 +63,6 @@ def process(fn):
     x = xml.parsers.expat.ParserCreate()
     x.StartElementHandler = start_element
     x.ParseFile(open("out.xml"))
-    generate()
 
 def parse_type(i):
     t = by_id[i][0]
@@ -87,6 +96,7 @@ def generate():
     global functions
 
     for i in structs:
+        pass
 
     for i in functions:
         for k, v in spec['funs'].items():
@@ -94,7 +104,68 @@ def generate():
                 emit_fun(i, v)
                 break
 
+prefixes = []
+
+def remove_prefix(x):
+    for p in prefixes:
+        if x.startswith(p):
+            return x[len(p):]
+    return x
+
+def cmd(c):
+    global prefixes
+
+    c = c.split(':')
+
+    if c[0] == 'prefix':
+        prefixes += [c[1]]
+
+    if c[0] == 'enums':
+        match_enums = []
+
+        for i in enums:
+            name = i['name']
+            if name[0] == '.': continue
+            if name[:2] == '__': continue
+            match_enums.append(i)
+
+        for i in match_enums:
+            name = remove_prefix(i['name'])
+            print 'static void %s_to_string(void* ret, void* const* args) {' % name
+            print '    const char* s = 0;'
+            print '    switch (*(int*)args[0]) {'
+            visited = set()
+            for j in i['values']:
+                n = j['name']
+                v = j['init']
+                if not v in visited:
+                    visited.add(v)
+                    print '    case %s:' % n
+                    print '        s = "%s";' % remove_prefix(n)
+                    print '        break;'
+            print '    }'
+            print '    *(const char**)ret = s;'
+            print '}'
+
+        print
+        print '#define ENUM_CONSTS \\'
+        for i in match_enums:
+            for j in i['values']:
+                n = j['name']
+                print 'STD2_CONST("%s", INT, %s) \\' % (remove_prefix(n), n)
+
+        print
+        print '#define ENUM_FUNCS \\'
+        for i in match_enums:
+            name = remove_prefix(i['name'])
+            print 'STD2_FUNC("%s_to_string", "cs", "i", %s_to_string) \\' % (name, name)
+        print
 
 if __name__ == '__main__':
-    parse_spec(sys.argv[1])
-    process(sys.argv[2])
+    print "/* generated!"
+    print " * arguments: %s" % (sys.argv,)
+    print " */"
+#    parse_spec(sys.argv[1])
+    process(sys.argv[1])
+    for i in sys.argv[2:]:
+        cmd(i)

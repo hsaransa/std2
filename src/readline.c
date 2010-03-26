@@ -59,5 +59,4 @@ STD2_BEGIN_FUNC_LIST(readline)
     STD2_FUNC("readline",     "ms",      "cs",     wrap_readline)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(readline)
-
+STD2_MODULE(readline, 0)

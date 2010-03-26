@@ -59,4 +59,4 @@ STD2_BEGIN_FUNC_LIST(openssl)
     STD2_FUNC("EVP_DigestFinal", "mb", "EVP_MD_CTX", wrap_EVP_DigestFinal)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(openssl)
+STD2_MODULE(openssl, 0)

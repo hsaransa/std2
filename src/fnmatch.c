@@ -24,4 +24,4 @@ STD2_BEGIN_FUNC_LIST(fnmatch)
     STD2_FUNC("fnmatch", "i", "cs cs i", wrap_fnmatch)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(fnmatch)
+STD2_MODULE(fnmatch, 0)

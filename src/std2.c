@@ -13,9 +13,11 @@ extern const struct std2_module std2_module_posix;
 extern const struct std2_module std2_module_inotify;
 STD2_MODULE_DYN_STUB(readline)
 STD2_MODULE_DYN_STUB(sdl)
+STD2_MODULE_DYN_STUB(sdl_ttf)
 STD2_MODULE_DYN_STUB(fltk)
 STD2_MODULE_DYN_STUB(cuda)
 STD2_MODULE_DYN_STUB(openssl)
+STD2_MODULE_DYN_STUB(gl)
 
 static const struct std2_module* modules[] = {
     &std2_module_fnmatch,
@@ -38,6 +40,9 @@ static const struct std2_module* modules[] = {
 #ifdef STD2_SDL
     &std2_module_sdl,
 #endif
+#ifdef STD2_SDL_TTF
+    &std2_module_sdl_ttf,
+#endif
 #ifdef STD2_FLTK
     &std2_module_fltk,
 #endif
@@ -46,6 +51,9 @@ static const struct std2_module* modules[] = {
 #endif
 #ifdef STD2_OPENSSL
     &std2_module_openssl,
+#endif
+#ifdef STD2_GL
+    &std2_module_gl,
 #endif
     0
 };
@@ -379,4 +387,10 @@ int std2_call_callback(struct std2_callback* cb, void* ret, int mask)
     has_callback = 0;
     cb->func(ret, cb->fd, mask, cb->user);
     return has_callback;
+}
+
+int std2_get_module_flags(int m)
+{
+    load_module(m);
+    return modules[m]->flags;
 }

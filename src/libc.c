@@ -142,4 +142,4 @@ STD2_BEGIN_FUNC_LIST(libc)
     STD2_FUNC("tolower",    "i", "i", wrap_tolower)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(libc)
+STD2_MODULE(libc, 0)

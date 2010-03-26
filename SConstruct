@@ -50,6 +50,15 @@ env.Append(CPPDEFINES=[("STD2_OPENSSL", 1)])
 env2 = env.Clone()
 env2.SharedLibrary("std2_openssl", ['src/openssl.c'], LIBS=['ssl'])
 
+env.Append(CPPDEFINES=[("STD2_SDL_TTF", 1)])
+env2 = env.Clone()
+env2.Append(CPPPATH=['/usr/include/SDL'])
+env2.SharedLibrary("std2_sdl_ttf", ['src/sdl_ttf.c'], LIBS=['SDL_ttf'])
+
+env.Append(CPPDEFINES=[("STD2_GL", 1)])
+env2 = env.Clone()
+env2.SharedLibrary("std2_gl", ['src/gl.c'], LIBS=['GL'])
+
 env.StaticLibrary('std2', src)
 
 env.Append(LIBS=['dl'])

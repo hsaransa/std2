@@ -40,6 +40,7 @@ struct std2_function
 struct std2_module
 {
     const char*                 name;
+    unsigned int                flags;
     const struct std2_class*    classes;
     const struct std2_const*    consts;
     const struct std2_function* functions;
@@ -57,13 +58,13 @@ struct std2_module
 #define STD2_FUNC(name, ret, args, func) { name, ret, args, func },
 #define STD2_END_FUNC_LIST() { 0, 0, 0, 0 } };
 
-#define STD2_MODULE(name) \
+#define STD2_MODULE(name, f) \
 STD2_EXTERN const struct std2_module std2_module_##name = \
-{ #name, class_list_##name, const_list_##name, func_list_##name };
+{ #name, f | STD2_MODULE_VALID, class_list_##name, const_list_##name, func_list_##name };
 
 #define STD2_MODULE_DYN_STUB(name) \
 STD2_EXTERN const struct std2_module std2_module_##name = \
-{ #name, 0, 0, 0 };
+{ #name, 0, 0, 0, 0 };
 
 void std2_yield_callback(struct std2_callback* cb);
 

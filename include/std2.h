@@ -46,11 +46,14 @@ struct std2_param
     int class_id;
 };
 
-#define STD2_CALLBACK_READ          1
-#define STD2_CALLBACK_WRITE         2
-#define STD2_CALLBACK_ERROR         4
-#define STD2_CALLBACK_TIMEOUT       8
-#define STD2_CALLBACK_ABORT         16
+enum std2_callback_flags
+{
+    STD2_CALLBACK_READ      = 1,
+    STD2_CALLBACK_WRITE     = 2,
+    STD2_CALLBACK_ERROR     = 4,
+    STD2_CALLBACK_TIMEOUT   = 8,
+    STD2_CALLBACK_ABORT     = 16
+};
 
 struct std2_callback
 {
@@ -61,11 +64,20 @@ struct std2_callback
     std2_callback_func func;
 };
 
+enum std2_module_flags
+{
+    STD2_MODULE_VALID       = 1, // all modules have this bit on
+    STD2_MODULE_BLOCKS      = 2,
+    STD2_MODULE_UNSAFE      = 4,
+    STD2_MODULE_THREAD_SAFE = 8
+};
+
 void std2_init();
 
 // Sets at most *count number of names to *names and then sets *count to
 // total number of names.
 void std2_list_modules(const char** names, int* count);
+int  std2_get_module_flags(int m);
 void std2_list_classes(int m, const char** names, int* count);
 void std2_list_consts(int m, const char** names, int* count);
 void std2_list_functions(int m, const char** names, int* count);

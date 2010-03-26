@@ -40,11 +40,14 @@ static void wrap_SDL_FillRect(void* ret, void* const* args)
 
 static void wrap_SDL_WM_SetCaption(void* ret, void* const* args)
 {
+    (void)ret;
     SDL_WM_SetCaption(args[0], args[1]);
 }
 
 static void wrap_SDL_PollEvent(void* ret, void* const* args)
 {
+    (void)args;
+
     SDL_Event ev;
     if (!SDL_PollEvent(&ev))
     {
@@ -56,6 +59,17 @@ static void wrap_SDL_PollEvent(void* ret, void* const* args)
     memcpy(ev2, &ev, sizeof(ev));
 
     *(void**)ret = ev2;
+}
+
+static void wrap_SDL_BlitSurface(void* ret, void* const* args)
+{
+    *(int*)ret = SDL_BlitSurface(args[0], args[1], args[2], args[3]);
+}
+
+static void wrap_SDL_GL_SwapBuffers(void* ret, void* const* args)
+{
+    (void)ret; (void)args;
+    SDL_GL_SwapBuffers();
 }
 
 //
@@ -88,12 +102,14 @@ static void Surface_set_pixels(void* ret, void* const* args)
 
 static void new_Rect(void* ret, void* const* args)
 {
+    (void)args;
     *(void**)ret = malloc(sizeof(SDL_Rect));
     memset(*(void**)ret, 0, sizeof(SDL_Rect));
 }
 
 static void Rect_set(void* ret, void* const* args)
 {
+    (void)ret;
     ((SDL_Rect*)args[0])->x = *(int*)args[1];
     ((SDL_Rect*)args[0])->y = *(int*)args[2];
     ((SDL_Rect*)args[0])->w = *(int*)args[3];
@@ -139,7 +155,13 @@ PLOP1(quit,   SDL_QUIT)
 PLOP1(user,   SDL_USEREVENT) // TODO: others
 PLOP1(syswm,  SDL_SYSWMEVENT)
 
-
+static void KeyboardEvent_get_keysym(void* ret, void* const* args)
+{
+    SDL_KeyboardEvent* ev = args[0];
+    void* p = malloc(sizeof(SDL_keysym));
+    memcpy(p, &ev->keysym, sizeof(SDL_keysym));
+    *(void**)ret = p;
+}
 
 STD2_BEGIN_CLASS_LIST(sdl)
     STD2_CLASS("Surface", free_Surface)
@@ -158,6 +180,7 @@ STD2_BEGIN_CLASS_LIST(sdl)
     STD2_CLASS("JoyHatEvent", free)
     STD2_CLASS("ExposeEvent", free)
     STD2_CLASS("QuitEvent", free)
+    STD2_CLASS("MotionEvent", free)
     STD2_CLASS("keysym", free)
 STD2_END_CLASS_LIST()
 
@@ -195,6 +218,8 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("FillRect",           "i",       "Surface Rect i", wrap_SDL_FillRect)
     STD2_FUNC("PollEvent",          "Event",   "",               wrap_SDL_PollEvent)
     STD2_FUNC("WM_SetCaption",      "",        "cs cs",          wrap_SDL_WM_SetCaption)
+    STD2_FUNC("BlitSurface",        "i", "Surface Rect Surface Rect", wrap_SDL_BlitSurface)
+    STD2_FUNC("GL_SwapBuffers",     "", "", wrap_SDL_GL_SwapBuffers)
 
     // Rect manipulation
     STD2_FUNC("new_Rect",           "Rect",    "",               new_Rect)
@@ -211,9 +236,9 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("Event_get_type",     "i",       "Event",          Event_get_type)
 
     STD2_FUNC("Event_get_active", "ActiveEvent",   "Event", Event_get_active)
-    STD2_FUNC("Event_get_key",    "KeyEvent",      "Event", Event_get_key)
+    STD2_FUNC("Event_get_key",    "KeyboardEvent", "Event", Event_get_key)
     STD2_FUNC("Event_get_motion", "MotionEvent",   "Event", Event_get_motion)
-    STD2_FUNC("Event_get_button", "ButtonEvent",   "Event", Event_get_button)
+    STD2_FUNC("Event_get_button", "MouseButtonEvent","Event", Event_get_button)
     STD2_FUNC("Event_get_jaxis",  "JoyAxisEvent",  "Event", Event_get_jaxis)
     STD2_FUNC("Event_get_jball",  "JoyBallEvent",  "Event", Event_get_jball)
     STD2_FUNC("Event_get_jhat",   "JoyHatEvent",   "Event", Event_get_jhat)
@@ -223,10 +248,9 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("Event_get_quit",   "QuitEvent",     "Event", Event_get_quit)
     STD2_FUNC("Event_get_user",   "UserEvent",     "Event", Event_get_user)
     STD2_FUNC("Event_get_syswm",  "SysWMEvent",    "Event", Event_get_syswm)
-
+    STD2_FUNC("KeyboardEvent_get_keysym", "keysym", "KeyboardEvent", KeyboardEvent_get_keysym)
     ENUM_FUNCS
     EVENTS_FUNCS
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(sdl)
-
+STD2_MODULE(sdl, 0)

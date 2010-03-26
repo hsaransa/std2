@@ -54,7 +54,7 @@ static void wrap_add_watch(void* ret, void* const * args)
     *(int*)ret = inotify_add_watch(p->fd, args[1], *(int*)args[2]);
 }
 
-static int read_cb(void* ret, int fd, int mask, void* user)
+static void read_cb(void* ret, int fd, int mask, void* user)
 {
     struct inotify* p = user;
 
@@ -62,7 +62,7 @@ static int read_cb(void* ret, int fd, int mask, void* user)
     if (n < 0)
     {
         *(void**)ret = 0;
-        return 0;
+        return;
     }
     p->buf_used += n;
 
@@ -79,8 +79,6 @@ static int read_cb(void* ret, int fd, int mask, void* user)
 
     p->buf_used -= s;
     memmove(p->buf, p->buf + s, p->buf_used);
-
-    return 0;
 }
 
 static void wrap_read(void* ret, void* const * args)
@@ -165,4 +163,4 @@ STD2_BEGIN_FUNC_LIST(inotify)
     STD2_FUNC("event_name",   "cs",      "event",        wrap_event_name)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(inotify)
+STD2_MODULE(inotify, 0)

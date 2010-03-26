@@ -105,6 +105,6 @@ STD2_BEGIN_FUNC_LIST(posix)
     STD2_FUNC("get_epoch_time", "l",     "",       wrap_get_epoch_time)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(posix)
+STD2_MODULE(posix, 0)
 
 

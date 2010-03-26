@@ -67,7 +67,7 @@ STD2_BEGIN_FUNC_LIST(iconv)
     STD2_FUNC("convert",  "mb", "iconv cb",      convert)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(iconv)
+STD2_MODULE(iconv, 0)
 
 
 #if 0

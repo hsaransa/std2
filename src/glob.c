@@ -77,4 +77,4 @@ STD2_BEGIN_FUNC_LIST(glob)
     STD2_FUNC("glob_path",  "cs",   "glob i", wrap_glob_path)
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(glob)
+STD2_MODULE(glob, 0)

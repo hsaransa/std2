@@ -41,10 +41,11 @@ env2 = env.Clone()
 env2.Append(CPPPATH=['/usr/include/SDL'])
 env2.SharedLibrary("std2_sdl", ['src/sdl.c'], LIBS=['SDL'])
 
-env.Append(CPPDEFINES=[("STD2_CUDA", 1)])
-env2 = env.Clone()
-env2.Append(CPPPATH=['/usr/local/cuda/include'])
-env2.SharedLibrary("std2_cuda", ['src/cuda.c'], LIBS=['cuda'])
+if False:
+  env.Append(CPPDEFINES=[("STD2_CUDA", 1)])
+  env2 = env.Clone()
+  env2.Append(CPPPATH=['/usr/local/cuda/include'])
+  env2.SharedLibrary("std2_cuda", ['src/cuda.c'], LIBS=['cuda'])
 
 env.Append(CPPDEFINES=[("STD2_OPENSSL", 1)])
 env2 = env.Clone()

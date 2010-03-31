@@ -74,13 +74,17 @@ enum std2_module_flags
 
 void std2_init();
 
-// Sets at most *count number of names to *names and then sets *count to
+// Assigns at most *count number of names to *names and then sets *count to
 // total number of names.
 void std2_list_modules(const char** names, int* count);
-int  std2_get_module_flags(int m);
 void std2_list_classes(int m, const char** names, int* count);
 void std2_list_consts(int m, const char** names, int* count);
 void std2_list_functions(int m, const char** names, int* count);
+
+int  std2_get_module_flags(int m);
+
+int  std2_fork();
+void std2_unfork(int id);
 
 // Returns negative if not found.
 int  std2_find_module(const char* name);
@@ -96,9 +100,9 @@ enum std2_const_type    std2_get_const_type(int m, int c);
 const void*             std2_get_const(int m, int c);
 
 // Returns 1 if return value is returned by a callback.
-int std2_call(int mod, int func, void* ret, void* const * args);
+int std2_call(int fork, int mod, int func, void* ret, void* const * args);
 int std2_call_callback(struct std2_callback* cb, void* ret, int mask);
-void std2_unrefer(int mod, int clas, void* ptr);
+int std2_unrefer(int fork, int mod, int clas, void* ptr);
 
 struct std2_callback std2_get_callback();
 

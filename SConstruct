@@ -5,12 +5,16 @@ import os
 modpath = ARGUMENTS.get('modpath', os.getcwd())
 
 env = Environment()
-env.Append(CPPFLAGS=['-g', '-Wall', '-W'])
+env.Append(CPPFLAGS=['-g', '-Wall', '-W', '-Werror=implicit-function-declaration'])
 env.Append(CPPPATH=['include'])
 env.Append(LINKFLAGS=['-rdynamic'])
 env.Append(CPPDEFINES=[("STD2_MODULE_PATH", '\\"%s\\"' % modpath)])
 
-src = ['src/std2.c']
+src = ['src/std2.c', 'src/modules.c']
+
+if True:
+  env.Append(CPPDEFINES=[("STD2_TESTMOD", 1)])
+  src += [env.StaticObject('src/testmod.c')]
 
 env.Append(CPPDEFINES=[("STD2_FNMATCH", 1)])
 src += [env.StaticObject('src/fnmatch.c')]

@@ -61,6 +61,23 @@ static void wrap_SDL_PollEvent(void* ret, void* const* args)
     *(void**)ret = ev2;
 }
 
+static void wrap_SDL_WaitEvent(void* ret, void* const* args)
+{
+    (void)args;
+
+    SDL_Event ev;
+    if (!SDL_WaitEvent(&ev))
+    {
+        *(void**)ret = 0;
+        return;
+    }
+
+    SDL_Event* ev2 = malloc(sizeof(SDL_Event));
+    memcpy(ev2, &ev, sizeof(ev));
+
+    *(void**)ret = ev2;
+}
+
 static void wrap_SDL_BlitSurface(void* ret, void* const* args)
 {
     *(int*)ret = SDL_BlitSurface(args[0], args[1], args[2], args[3]);
@@ -217,6 +234,7 @@ STD2_BEGIN_FUNC_LIST(sdl)
     STD2_FUNC("Flip",               "i",       "Surface",        wrap_SDL_Flip)
     STD2_FUNC("FillRect",           "i",       "Surface Rect i", wrap_SDL_FillRect)
     STD2_FUNC("PollEvent",          "Event",   "",               wrap_SDL_PollEvent)
+    STD2_FUNC("WaitEvent",          "Event",   "",               wrap_SDL_WaitEvent)
     STD2_FUNC("WM_SetCaption",      "",        "cs cs",          wrap_SDL_WM_SetCaption)
     STD2_FUNC("BlitSurface",        "i", "Surface Rect Surface Rect", wrap_SDL_BlitSurface)
     STD2_FUNC("GL_SwapBuffers",     "", "", wrap_SDL_GL_SwapBuffers)
@@ -253,4 +271,4 @@ STD2_BEGIN_FUNC_LIST(sdl)
     EVENTS_FUNCS
 STD2_END_FUNC_LIST()
 
-STD2_MODULE(sdl, 0)
+STD2_MODULE(sdl, STD2_MODULE_BLOCKS | STD2_MODULE_UNSAFE)

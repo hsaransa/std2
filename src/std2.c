@@ -1,4 +1,5 @@
 #include "std2priv.h"
+#include "buffer.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -8,70 +9,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-extern const struct std2_module std2_module_testmod;
-extern const struct std2_module std2_module_fnmatch;
-extern const struct std2_module std2_module_libc;
-extern const struct std2_module std2_module_iconv;
-extern const struct std2_module std2_module_glob;
-extern const struct std2_module std2_module_posix;
-extern const struct std2_module std2_module_inotify;
-STD2_MODULE_DYN_STUB(readline)
-STD2_MODULE_DYN_STUB(sdl)
-STD2_MODULE_DYN_STUB(sdl_ttf)
-STD2_MODULE_DYN_STUB(fltk)
-STD2_MODULE_DYN_STUB(cuda)
-STD2_MODULE_DYN_STUB(openssl)
-STD2_MODULE_DYN_STUB(gl)
-
-static const struct std2_module* modules[] = {
-#ifdef STD2_TESTMOD
-    &std2_module_testmod,
-#endif
-    &std2_module_fnmatch,
-    &std2_module_libc,
-#ifdef STD2_ICONV
-    &std2_module_iconv,
-#endif
-#ifdef STD2_GLOB
-    &std2_module_glob,
-#endif
-#ifdef STD2_POSIX
-    &std2_module_posix,
-#endif
-#ifdef STD2_INOTIFY
-    &std2_module_inotify,
-#endif
-#ifdef STD2_READLINE
-    &std2_module_readline,
-#endif
-#ifdef STD2_SDL
-    &std2_module_sdl,
-#endif
-#ifdef STD2_SDL_TTF
-    &std2_module_sdl_ttf,
-#endif
-#ifdef STD2_FLTK
-    &std2_module_fltk,
-#endif
-#ifdef STD2_CUDA
-    &std2_module_cuda,
-#endif
-#ifdef STD2_OPENSSL
-    &std2_module_openssl,
-#endif
-#ifdef STD2_GL
-    &std2_module_gl,
-#endif
-    0
-};
-
-typedef struct buffer_s
-{
-    int pos;
-    int size;
-    int max;
-    void* data;
-} buffer;
+extern const struct std2_module* std2_modules[];
 
 typedef struct fork_state_s
 {
@@ -97,113 +35,9 @@ typedef struct request_s
 static int         fork_count;
 static fork_state* forks;
 
-static void buffer_reserve(buffer* buf, int n)
-{
-    int max = buf->size + n;
-
-    if (max < buf->max)
-        return;
-
-    max = (max + 63) & ~63;
-
-    void* ptr = realloc(buf->data, max);
-    if (!ptr)
-    {
-        fprintf(stderr, "std2: malloc of %d bytes failed\n", max);
-        abort();
-    }
-
-    buf->max = max;
-    buf->data = ptr;
-}
-
-static void buffer_free(buffer* b)
-{
-    free(b->data);
-    memset(b, 0, sizeof(*b));
-}
-
-static void buffer_append_data(buffer* b, const void* p, int n)
-{
-    buffer_reserve(b, n);
-    assert(b->size+n <= b->max);
-    memcpy((char*)b->data + b->size, p, n);
-    b->size += n;
-}
-
-static void buffer_append_alignment(buffer* b, int align)
-{
-    assert(align == 4 || align == 8);
-    int n = (b->size + align - 1) & ~(align - 1);
-    buffer_reserve(b, align);
-    while (b->size < n)
-        *((char*)b->data + b->size++) = 0;
-}
-
-static void buffer_append_32(buffer* b, std2_int32 v)
-{
-    buffer_reserve(b, 4);
-    assert(b->size+4 <= b->max);
-    memcpy((char*)b->data + b->size, &v, 4);
-    b->size += 4;
-}
-
-static void buffer_append_64(buffer* b, std2_int64 v)
-{
-    buffer_reserve(b, 8);
-    assert(b->size+8 <= b->max);
-    memcpy((char*)b->data + b->size, &v, 8);
-    b->size += 8;
-}
-
-static std2_int32 buffer_read_32(buffer* b)
-{
-    std2_int32 v;
-    assert(b->pos + 4 <= b->size);
-    memcpy(&v, (char*)b->data + b->pos, 4);
-    b->pos += 4;
-    return v;
-}
-
-static int buffer_avail(buffer* b)
-{
-    return b->size - b->pos;
-}
-
-static int write_buffer(int fd, buffer* buf)
-{
-    int r = write(fd, (char*)buf->data + buf->pos, buf->size - buf->pos);
-    if (r < 0)
-    {
-        fprintf(stderr, "std2: wtf, error %s\n", strerror(errno));
-        abort();
-    }
-    buf->pos += r;
-    return r;
-}
-
-static int read_buffer_append(int fd, buffer* buf, int at_least)
-{
-    buffer_reserve(buf, at_least);
-    while (buffer_avail(buf) < at_least)
-    {
-        int ret = read(fd, (char*)buf->data + buf->size, buf->max - buf->size);
-        if (ret < 0)
-        {
-            fprintf(stderr, "std2: child recv error %s\n", strerror(errno));
-            abort();
-        }
-        if (ret == 0)
-            return 1;
-
-        buf->size += ret;
-    }
-    return 0;
-}
-
 static void load_module(int mod)
 {
-    const struct std2_module* old_m = modules[mod];
+    const struct std2_module* old_m = std2_modules[mod];
     if (old_m->functions)
         return;
 
@@ -223,7 +57,7 @@ static void load_module(int mod)
         abort();
     }
 
-    modules[mod] = new_m;
+    std2_modules[mod] = new_m;
 
     // TODO: handle is leaked (there's no unload support)
 }
@@ -240,10 +74,10 @@ void std2_list_modules(const char** names, int* count)
     int limit = *count;
 
     int i;
-    for (i = 0; modules[i]; i++)
+    for (i = 0; std2_modules[i]; i++)
     {
         if (names && i < limit)
-            names[i] = modules[i]->name;
+            names[i] = std2_modules[i]->name;
     }
 
     *count = i;
@@ -254,7 +88,7 @@ void std2_list_modules(const char** names, int* count)
         return; \
 \
     load_module(mod); \
-    const struct std2_module* m = modules[mod]; \
+    const struct std2_module* m = std2_modules[mod]; \
 \
     int limit = *count; \
 \
@@ -285,8 +119,8 @@ void std2_list_functions(int mod, const char** names, int* count)
 int std2_find_module(const char* name)
 {
     int i;
-    for (i = 0; modules[i]; i++)
-        if (strcmp(modules[i]->name, name) == 0)
+    for (i = 0; std2_modules[i]; i++)
+        if (strcmp(std2_modules[i]->name, name) == 0)
             return i;
     return -1;
 }
@@ -294,7 +128,7 @@ int std2_find_module(const char* name)
 int std2_find_class(int module, const char* name)
 {
     load_module(module);
-    const struct std2_module* m = modules[module];
+    const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->classes[i].name; i++)
         if (strcmp(m->classes[i].name, name) == 0)
@@ -305,7 +139,7 @@ int std2_find_class(int module, const char* name)
 int std2_find_const(int module, const char* name)
 {
     load_module(module);
-    const struct std2_module* m = modules[module];
+    const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->consts[i].name; i++)
         if (strcmp(m->consts[i].name, name) == 0)
@@ -316,7 +150,7 @@ int std2_find_const(int module, const char* name)
 int std2_find_function(int module, const char* name)
 {
     load_module(module);
-    const struct std2_module* m = modules[module];
+    const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->functions[i].name; i++)
         if (strcmp(m->functions[i].name, name) == 0)
@@ -331,7 +165,7 @@ static const struct std2_function* get_function(int mod, int func)
 
     load_module(mod);
 
-    const struct std2_module* m = modules[mod];
+    const struct std2_module* m = std2_modules[mod];
     const struct std2_function* f = &m->functions[func];
 
     return f;
@@ -344,7 +178,7 @@ static const struct std2_class* get_class(int mod, int clas)
 
     load_module(mod);
 
-    const struct std2_module* m = modules[mod];
+    const struct std2_module* m = std2_modules[mod];
     const struct std2_class* c = &m->classes[clas];
 
     return c;
@@ -357,7 +191,7 @@ static const struct std2_const* get_const(int mod, int cons)
 
     load_module(mod);
 
-    const struct std2_module* m = modules[mod];
+    const struct std2_module* m = std2_modules[mod];
     const struct std2_const* c = &m->consts[cons];
 
     return c;
@@ -527,7 +361,6 @@ static void read_cb(void* ret, int fd, int mask, void* user)
     request* req = user;
     fork_state* fs = &forks[req->fork_id-1];
 
-    fprintf(stderr, "THE MASK IS %x\n", mask);
     if (mask & STD2_CALLBACK_ABORT)
     {
         assert(!"abort not implemented");
@@ -537,7 +370,13 @@ static void read_cb(void* ret, int fd, int mask, void* user)
 
     buffer_reserve(&req->buffer, 1024);
     int closed = read_buffer_append(fd, &req->buffer, 1);
-    assert(!closed);
+    if (closed)
+    {
+        struct std2_callback cb;
+        cb.flags = STD2_CALLBACK_FORK_ERROR;
+        std2_yield_callback(&cb);
+        return;
+    }
 
     if (buffer_avail(&req->buffer) < 4)
     {
@@ -560,6 +399,11 @@ static void read_cb(void* ret, int fd, int mask, void* user)
     case STD2_INT32:
         *(std2_int32*)ret = *(std2_int32*)p;
         p = (char*)p + 4;
+        break;
+
+    case STD2_INSTANCE:
+        *(void**)ret = *(void**)p;
+        p = (char*)p + sizeof(void*);
         break;
     }
 }
@@ -652,8 +496,12 @@ int std2_call(int fork, int mod, int func, void* ret, void* const * args)
                 }
                 break;
 
+            case STD2_INSTANCE:
+                buffer_append_data(&req->buffer, &args[i], sizeof(void*));
+                break;
+
             default:
-                fprintf(stderr, "std2: unknown type %d\n", p.type);
+                fprintf(stderr, "std2: (b) unknown type %d\n", p.type);
                 abort();
             }
         }
@@ -696,7 +544,7 @@ int std2_unrefer(int fork, int mod, int clas, void* ptr)
         buffer_append_32(&req->buffer, 'u');
         buffer_append_32(&req->buffer, mod);
         buffer_append_32(&req->buffer, clas);
-        buffer_append_64(&req->buffer, (std2_int64)ptr);
+        buffer_append_data(&req->buffer, &ptr, sizeof(void*));
 
         struct std2_callback cb;
         cb.flags = STD2_CALLBACK_WRITE | STD2_CALLBACK_ABORT;
@@ -725,7 +573,7 @@ int std2_call_callback(struct std2_callback* cb, void* ret, int mask)
 int std2_get_module_flags(int m)
 {
     load_module(m);
-    return modules[m]->flags;
+    return std2_modules[m]->flags;
 }
 
 int std2_fork()
@@ -807,8 +655,13 @@ int std2_fork()
                         }
                         break;
 
+                    case STD2_INSTANCE:
+                        args[i] = *(void**)p;
+                        p = (char*)p + sizeof(void*);
+                        break;
+
                     default:
-                        fprintf(stderr, "std2: unknown type %d\n", t.type);
+                        fprintf(stderr, "std2: (c) unknown type %d\n", t.type);
                         abort();
                     }
                 }
@@ -839,14 +692,16 @@ int std2_fork()
                     {
                         void* v;
                         func->func(&v, args);
-                        buffer_append_64(&fs->out_buffer, (std2_int64)v);
+                        buffer_append_data(&fs->out_buffer, &v, sizeof(void*));
                     }
                     break;
 
                 default:
-                    fprintf(stderr, "std2: unknown type %d\n", ret.type);
+                    fprintf(stderr, "std2: (a) unknown type %d\n", ret.type);
                     abort();
                 }
+
+                assert(!has_callback);
 
                 *(int*)((char*)fs->out_buffer.data + size_pos) =
                     fs->out_buffer.size - size_pos - 4;

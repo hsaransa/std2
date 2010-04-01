@@ -48,11 +48,13 @@ struct std2_param
 
 enum std2_callback_flags
 {
-    STD2_CALLBACK_READ      = 1,
-    STD2_CALLBACK_WRITE     = 2,
-    STD2_CALLBACK_ERROR     = 4,
-    STD2_CALLBACK_TIMEOUT   = 8,
-    STD2_CALLBACK_ABORT     = 16
+    STD2_CALLBACK_READ       = 1,
+    STD2_CALLBACK_WRITE      = 2,
+    STD2_CALLBACK_ERROR      = 4,
+    STD2_CALLBACK_TIMEOUT    = 8,
+    STD2_CALLBACK_ABORT      = 16,
+    STD2_CALLBACK_FORK_ERROR = 32 // not really a callback but a signal that
+                                  // fork crashed
 };
 
 struct std2_callback

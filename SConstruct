@@ -10,7 +10,7 @@ env.Append(CPPPATH=['include'])
 env.Append(LINKFLAGS=['-rdynamic'])
 env.Append(CPPDEFINES=[("STD2_MODULE_PATH", '\\"%s\\"' % modpath)])
 
-src = ['src/std2.c', 'src/modules.c']
+src = ['src/std2.c', 'src/modules.c', 'src/buffer.c']
 
 if True:
   env.Append(CPPDEFINES=[("STD2_TESTMOD", 1)])

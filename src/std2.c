@@ -11,10 +11,18 @@
 
 extern const struct std2_module* std2_modules[];
 
+typedef struct request_s
+{
+    int id;
+    int fork_id;
+    buffer buffer;
+    struct std2_param ret_type;
+} request;
+
 typedef struct fork_state_s
 {
     int fork_pid;
-    int to_client_fd[2];
+    int to_client_fd[2]; // first one for reading, second one for writing
     int to_host_fd[2];
 
     int current_id; // for requests
@@ -23,14 +31,6 @@ typedef struct fork_state_s
     buffer in_buffer;
     buffer out_buffer;
 } fork_state;
-
-typedef struct request_s
-{
-    int id;
-    int fork_id;
-    buffer buffer;
-    struct std2_param ret_type;
-} request;
 
 static int         fork_count;
 static fork_state* forks;
@@ -401,6 +401,15 @@ static void read_cb(void* ret, int fd, int mask, void* user)
         p = (char*)p + 4;
         break;
 
+    case STD2_C_STRING:
+        {
+            int size = *(int*)p;
+            p = (char*)p + 4;
+            *(const char**)ret = p;
+            p = (char*)p + size;
+        }
+        break;
+
     case STD2_INSTANCE:
         *(void**)ret = *(void**)p;
         p = (char*)p + sizeof(void*);
@@ -618,7 +627,11 @@ int std2_fork()
 
         while (1)
         {
-            read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, 16);
+            if (read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, 16))
+            {
+                fprintf(stderr, "std2: child got disconnection\n");
+                exit(1);
+            }
 
             int marker = buffer_read_32(&fs->in_buffer);
 
@@ -685,6 +698,19 @@ int std2_fork()
                         std2_int32 v;
                         func->func(&v, args);
                         buffer_append_32(&fs->out_buffer, v);
+                    }
+                    break;
+
+                case STD2_C_STRING:
+                    {
+                        const char* v;
+                        func->func(&v, args);
+
+                        int l = strlen(v) + 1;
+                        int n = (l + 3) & ~3;
+                        buffer_append_32(&fs->out_buffer, n);
+                        buffer_append_data(&fs->out_buffer, v, l);
+                        buffer_append_alignment(&fs->out_buffer, 4);
                     }
                     break;
 

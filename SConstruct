@@ -64,6 +64,11 @@ env.Append(CPPDEFINES=[("STD2_GL", 1)])
 env2 = env.Clone()
 env2.SharedLibrary("std2_gl", ['modules/gl.c'], LIBS=['GL'])
 
+env.Append(CPPDEFINES=[("STD2_GTK", 1)])
+env2 = env.Clone()
+env2.ParseConfig("pkg-config gtk+-2.0 --cflags --libs")
+env2.SharedLibrary("std2_gtk", ['modules/gtk.c'])
+
 env.StaticLibrary('std2', src)
 
 env.Append(LIBS=['dl'])

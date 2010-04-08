@@ -68,6 +68,7 @@ void std2_buffer_append_64(buffer* b, std2_int64 v)
 std2_int32 std2_buffer_read_32(buffer* b)
 {
     std2_int32 v;
+    fprintf(stderr, "%d + 4 <= %d\n", b->pos, b->size);
     assert(b->pos + 4 <= b->size);
     memcpy(&v, (char*)b->data + b->pos, 4);
     b->pos += 4;

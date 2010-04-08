@@ -71,7 +71,8 @@ enum std2_module_flags
     STD2_MODULE_VALID       = 1, // all modules have this bit on
     STD2_MODULE_BLOCKS      = 2,
     STD2_MODULE_UNSAFE      = 4,
-    STD2_MODULE_THREAD_SAFE = 8
+    STD2_MODULE_THREAD_SAFE = 8,
+    STD2_MODULE_MUST_FORK   = 16
 };
 
 void std2_init();

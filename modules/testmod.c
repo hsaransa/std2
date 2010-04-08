@@ -36,6 +36,14 @@ static void wrap_sleep(void* ret, void* const* args)
     sleep(n);
 }
 
+static void sleep_mul(void* ret, void* const* args)
+{
+    int n = *(int*)args[0];
+    fprintf(stderr, "testmod.sleep_mul method called with %d\n", n);
+    sleep(n);
+    *(int*)ret = *(int*)args[1] * *(int*)args[2];
+}
+
 static void mul(void* ret, void* const* args)
 {
     *(int*)ret = *(int*)args[0] * *(int*)args[1];
@@ -54,6 +62,7 @@ STD2_BEGIN_FUNC_LIST(testmod)
     STD2_FUNC("class_get", "i", "class", class_get)
     STD2_FUNC("crash", "", "", crash)
     STD2_FUNC("sleep", "", "i", wrap_sleep)
+    STD2_FUNC("sleep_mul", "i", "i i i", sleep_mul)
     STD2_FUNC("mul", "i", "i i", mul)
 STD2_END_FUNC_LIST()
 

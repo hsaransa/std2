@@ -25,11 +25,10 @@ typedef struct fork_state_s
     int to_client_fd[2]; // first one for reading, second one for writing
     int to_host_fd[2];
 
-    int current_id; // for requests
-    int next_id;
-
     buffer in_buffer;
     buffer out_buffer;
+
+    int next_id;
 } fork_state;
 
 static int         fork_count;
@@ -434,7 +433,7 @@ static void write_cb(void* ret, int fd, int mask, void* user)
     int r = write_buffer(fd, &req->buffer);
     if (r < 0)
     {
-        fprintf(stderr, "std2: wtf, error %s\n", strerror(errno));
+        fprintf(stderr, "std2: write error: %s\n", strerror(errno));
         abort();
     }
 
@@ -479,6 +478,7 @@ int std2_call(int fork, int mod, int func, void* ret, void* const * args)
         req->id = fs->next_id++;
 
         buffer_append_32(&req->buffer, 'c');
+        buffer_append_32(&req->buffer, req->id);
         buffer_append_32(&req->buffer, mod);
         buffer_append_32(&req->buffer, func);
         int size_pos = req->buffer.size;
@@ -551,6 +551,7 @@ int std2_unrefer(int fork, int mod, int clas, void* ptr)
         req->id = fs->next_id++;
 
         buffer_append_32(&req->buffer, 'u');
+        buffer_append_32(&req->buffer, 0);
         buffer_append_32(&req->buffer, mod);
         buffer_append_32(&req->buffer, clas);
         buffer_append_data(&req->buffer, &ptr, sizeof(void*));
@@ -584,6 +585,8 @@ int std2_get_module_flags(int m)
     load_module(m);
     return std2_modules[m]->flags;
 }
+
+static int current_fork_id;
 
 int std2_fork()
 {
@@ -620,136 +623,15 @@ int std2_fork()
     }
     else
     {
+        // Child.
+
+        current_fork_id = fork_count;
+
         close(fs->to_client_fd[1]);
         close(fs->to_host_fd[0]);
 
-        // Child.
-
         while (1)
-        {
-            if (read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, 16))
-            {
-                fprintf(stderr, "std2: child got disconnection\n");
-                exit(1);
-            }
-
-            int marker = buffer_read_32(&fs->in_buffer);
-
-            if (marker == 'c')
-            {
-                int m = buffer_read_32(&fs->in_buffer);
-                int f = buffer_read_32(&fs->in_buffer);
-                int params_size = buffer_read_32(&fs->in_buffer);
-
-                read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, params_size);
-
-                void* args[16];
-
-                void* p = (char*)fs->in_buffer.data + fs->in_buffer.pos;
-
-                int param_count = std2_get_param_count(m, f);
-                int i;
-                for (i = 0; i < param_count; i++)
-                {
-                    struct std2_param t = std2_get_param_type(m, f, i);
-                    switch (t.type)
-                    {
-                    case STD2_INT32:
-                        args[i] = p;
-                        p = (char*)p + 4;
-                        break;
-
-                    case STD2_C_STRING:
-                        {
-                            int size = *(int*)p;
-                            p = (char*)p + 4;
-                            args[i] = p;
-                            p = (char*)p + size;
-                        }
-                        break;
-
-                    case STD2_INSTANCE:
-                        args[i] = *(void**)p;
-                        p = (char*)p + sizeof(void*);
-                        break;
-
-                    default:
-                        fprintf(stderr, "std2: (c) unknown type %d\n", t.type);
-                        abort();
-                    }
-                }
-
-                const struct std2_function* func = get_function(m, f);
-                struct std2_param ret = std2_get_return_type(m, f);
-
-                has_callback = 0;
-
-                int size_pos = fs->out_buffer.pos;
-                buffer_append_32(&fs->out_buffer, 0); // size will be filled afterwards
-
-                switch (ret.type)
-                {
-                case STD2_VOID:
-                    func->func(0, args);
-                    break;
-
-                case STD2_INT32:
-                    {
-                        std2_int32 v;
-                        func->func(&v, args);
-                        buffer_append_32(&fs->out_buffer, v);
-                    }
-                    break;
-
-                case STD2_C_STRING:
-                    {
-                        const char* v;
-                        func->func(&v, args);
-
-                        int l = strlen(v) + 1;
-                        int n = (l + 3) & ~3;
-                        buffer_append_32(&fs->out_buffer, n);
-                        buffer_append_data(&fs->out_buffer, v, l);
-                        buffer_append_alignment(&fs->out_buffer, 4);
-                    }
-                    break;
-
-                case STD2_INSTANCE:
-                    {
-                        void* v;
-                        func->func(&v, args);
-                        buffer_append_data(&fs->out_buffer, &v, sizeof(void*));
-                    }
-                    break;
-
-                default:
-                    fprintf(stderr, "std2: (a) unknown type %d\n", ret.type);
-                    abort();
-                }
-
-                assert(!has_callback);
-
-                *(int*)((char*)fs->out_buffer.data + size_pos) =
-                    fs->out_buffer.size - size_pos - 4;
-
-                while (buffer_avail(&fs->out_buffer))
-                    write_buffer(fs->to_host_fd[1], &fs->out_buffer);
-
-                fs->in_buffer.pos = 0;
-                fs->in_buffer.size = 0;
-                fs->out_buffer.pos = 0;
-                fs->out_buffer.size = 0;
-            }
-            else if (marker == 'u')
-            {
-                assert(!"todo");
-            }
-            else
-            {
-                fprintf(stderr, "std2: protocol error\n");
-                abort();
-            }
-        }
+            std2_process_request();
     }
 
     return fork_count;
@@ -767,4 +649,148 @@ void std2_unfork(int f)
 
     buffer_free(&fs->in_buffer);
     buffer_free(&fs->out_buffer);
+}
+
+int std2_current_fork_fd()
+{
+    assert(current_fork_id > 0);
+    fork_state* fs = &forks[current_fork_id-1];
+    return fs->to_client_fd[0];
+}
+
+void std2_process_request()
+{
+    fork_state* fs = &forks[current_fork_id-1];
+
+    if (read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, 20))
+    {
+        fprintf(stderr, "std2: child got disconnection\n");
+        exit(1);
+    }
+
+    int marker = buffer_read_32(&fs->in_buffer);
+    int req_id = buffer_read_32(&fs->in_buffer);
+
+    if (marker == 'c')
+    {
+        int m = buffer_read_32(&fs->in_buffer);
+        int f = buffer_read_32(&fs->in_buffer);
+        int params_size = buffer_read_32(&fs->in_buffer);
+
+        read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, params_size);
+
+        // Construct parameters.
+
+        void* args[16];
+
+        void* start_ptr = (char*)fs->in_buffer.data + fs->in_buffer.pos;
+        void* end_ptr = (char*)fs->in_buffer.data + fs->in_buffer.size;
+        void* p = start_ptr;
+
+        int param_count = std2_get_param_count(m, f);
+        int i;
+        for (i = 0; i < param_count; i++)
+        {
+            struct std2_param t = std2_get_param_type(m, f, i);
+            switch (t.type)
+            {
+                case STD2_INT32:
+                    args[i] = p;
+                    p = (char*)p + 4;
+                    break;
+
+                case STD2_C_STRING:
+                    {
+                        int size = *(int*)p;
+                        p = (char*)p + 4;
+                        args[i] = p;
+                        p = (char*)p + size;
+                    }
+                    break;
+
+                case STD2_INSTANCE:
+                    args[i] = *(void**)p;
+                    p = (char*)p + sizeof(void*);
+                    break;
+
+                default:
+                    fprintf(stderr, "std2: (c) unknown type %d\n", t.type);
+                    abort();
+            }
+
+            assert(p <= end_ptr);
+        }
+
+        fs->in_buffer.pos += (char*)p - (char*)start_ptr;
+
+        // Do the call.
+
+        const struct std2_function* func = get_function(m, f);
+        struct std2_param ret = std2_get_return_type(m, f);
+
+        has_callback = 0;
+
+        int size_pos = fs->out_buffer.pos;
+        buffer_append_32(&fs->out_buffer, 0); // size will be filled afterwards
+
+        switch (ret.type)
+        {
+            case STD2_VOID:
+                func->func(0, args);
+                break;
+
+            case STD2_INT32:
+                {
+                    std2_int32 v;
+                    func->func(&v, args);
+                    buffer_append_32(&fs->out_buffer, v);
+                }
+                break;
+
+            case STD2_C_STRING:
+                {
+                    const char* v;
+                    func->func(&v, args);
+
+                    int l = strlen(v) + 1;
+                    int n = (l + 3) & ~3;
+                    buffer_append_32(&fs->out_buffer, n);
+                    buffer_append_data(&fs->out_buffer, v, l);
+                    buffer_append_alignment(&fs->out_buffer, 4);
+                }
+                break;
+
+            case STD2_INSTANCE:
+                {
+                    void* v;
+                    func->func(&v, args);
+                    buffer_append_data(&fs->out_buffer, &v, sizeof(void*));
+                }
+                break;
+
+            default:
+                fprintf(stderr, "std2: (a) unknown type %d\n", ret.type);
+                abort();
+        }
+
+        assert(!has_callback);
+
+        *(int*)((char*)fs->out_buffer.data + size_pos) =
+            fs->out_buffer.size - size_pos - 4;
+
+        while (buffer_avail(&fs->out_buffer))
+            write_buffer(fs->to_host_fd[1], &fs->out_buffer);
+
+        buffer_compact(&fs->in_buffer);
+        buffer_compact(&fs->out_buffer);
+    }
+    else if (marker == 'u')
+    {
+        assert(!"todo");
+    }
+    else
+    {
+        fprintf(stderr, "std2: protocol error, bad marker %d\n", marker);
+        abort();
+    }
 }

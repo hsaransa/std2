@@ -67,7 +67,9 @@ STD2_EXTERN const struct std2_module std2_module_##name = \
 { #name, 0, 0, 0, 0 };
 
 void std2_yield_callback(struct std2_callback* cb);
+
 int  std2_current_fork_fd();
+void std2_process_request();
 
 // Helpers.
 

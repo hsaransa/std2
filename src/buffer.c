@@ -68,7 +68,6 @@ void std2_buffer_append_64(buffer* b, std2_int64 v)
 std2_int32 std2_buffer_read_32(buffer* b)
 {
     std2_int32 v;
-    fprintf(stderr, "%d + 4 <= %d\n", b->pos, b->size);
     assert(b->pos + 4 <= b->size);
     memcpy(&v, (char*)b->data + b->pos, 4);
     b->pos += 4;
@@ -78,6 +77,14 @@ std2_int32 std2_buffer_read_32(buffer* b)
 int std2_buffer_avail(buffer* b)
 {
     return b->size - b->pos;
+}
+
+void std2_buffer_compact(buffer* b)
+{
+    assert(b->pos <= b->size);
+    memmove(b->data, (char*)b->data + b->pos, b->size - b->pos);
+    b->size -= b->pos;
+    b->pos = 0;
 }
 
 int std2_write_buffer(int fd, buffer* buf)

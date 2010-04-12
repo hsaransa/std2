@@ -15,6 +15,7 @@ extern "C" {
 
 typedef void (*std2_unrefer_func)(void* ptr);
 typedef void (*std2_func)(void* ret, void* const * args);
+typedef void (*std2_return_func)(int id, void* ret, void* user, void* user2);
 
 struct std2_class
 {
@@ -46,6 +47,17 @@ struct std2_module
     const struct std2_function* functions;
 };
 
+int  std2_delay_return();
+void std2_continue_return(int id, std2_return_func, void*);
+void std2_abort_return(int id);
+
+int  std2_current_fork_fd();
+void std2_process_request();
+
+void std2_yield_callback(struct std2_callback* cb);
+
+// Macros to create module specifications.
+
 #define STD2_BEGIN_CLASS_LIST(name) static const struct std2_class class_list_##name[] = {
 #define STD2_CLASS(name, unrefer) { name, unrefer },
 #define STD2_END_CLASS_LIST() { 0, 0 } };
@@ -65,11 +77,6 @@ STD2_EXTERN const struct std2_module std2_module_##name = \
 #define STD2_MODULE_DYN_STUB(name) \
 STD2_EXTERN const struct std2_module std2_module_##name = \
 { #name, 0, 0, 0, 0 };
-
-void std2_yield_callback(struct std2_callback* cb);
-
-int  std2_current_fork_fd();
-void std2_process_request();
 
 // Helpers.
 

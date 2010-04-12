@@ -2,8 +2,10 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <stdio.h>
+
 static char* line;
 static int quit;
+static int return_id;
 
 static void handler(char* l)
 {
@@ -11,6 +13,11 @@ static void handler(char* l)
     if (!l)
         quit = 1;
     line = l;
+}
+
+static void return_line(int id, void* ret, void* arg0, void* arg1)
+{
+    *(char**)ret = arg1;
 }
 
 static void callback(void* ret, int fd, int mask, void* user)
@@ -32,12 +39,19 @@ static void callback(void* ret, int fd, int mask, void* user)
     {
         if (line)
             add_history(line);
-        *(char**)ret = line;
+
+        std2_continue_return(return_id, return_line, line);
     }
 }
 
 static void wrap_readline(void* ret, void* const* args)
 {
+    if (return_id)
+    {
+        *(void**)ret = 0;
+        return;
+    }
+
     rl_callback_handler_install((const char*)args[0], handler);
 
     struct std2_callback cb;
@@ -45,8 +59,9 @@ static void wrap_readline(void* ret, void* const* args)
     cb.flags = STD2_CALLBACK_READ;
     cb.fd = 0; // stdin
     cb.func = callback;
-
     std2_yield_callback(&cb);
+
+    return_id = std2_delay_return(0, 0);
 }
 
 STD2_BEGIN_CLASS_LIST(readline)

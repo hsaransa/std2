@@ -10,7 +10,7 @@
 struct inotify
 {
     int fd;
-    int reading;
+    int return_id;
     char buf[1024];
     int buf_used;
 };
@@ -43,7 +43,7 @@ static void wrap_inotify(void* ret, void* const * args)
 
     *(void**)ret = p;
     p->fd = fd;
-    p->reading = 0;
+    p->return_id = 0;
 }
 
 static void wrap_add_watch(void* ret, void* const * args)
@@ -54,36 +54,94 @@ static void wrap_add_watch(void* ret, void* const * args)
     *(int*)ret = inotify_add_watch(p->fd, args[1], *(int*)args[2]);
 }
 
-static void read_cb(void* ret, int fd, int mask, void* user)
+static void wrap_rm_watch(void* ret, void* const * args)
 {
-    struct inotify* p = user;
+    struct inotify* p = args[0];
+    *(int*)ret = inotify_rm_watch(p->fd, *(int*)args[1]);
+}
 
-    int n = read(fd, p->buf + p->buf_used, sizeof(p->buf) - p->buf_used);
-    if (n < 0)
-    {
-        *(void**)ret = 0;
-        return;
-    }
-    p->buf_used += n;
-
+static struct inotify_event* parse_event(struct inotify* p)
+{
     struct inotify_event ev;
+    if (p->buf_used < (int)sizeof(ev))
+        return 0;
+
     memcpy(&ev, p->buf, sizeof(ev));
 
     int s = sizeof(ev) + ev.len;
+    if (p->buf_used < s)
+        return 0;
 
     struct inotify_event* ev2 = malloc(s+1);
     memcpy(ev2, p->buf, s);
     ev2->name[ev2->len] = '\0';
 
-    *(void**)ret = ev2;
-
     p->buf_used -= s;
     memmove(p->buf, p->buf + s, p->buf_used);
+
+    return ev2;
+}
+
+static void read_cb(int fd, int mask, void* user)
+{
+    struct inotify* p = user;
+
+    assert(mask & STD2_CALLBACK_READ);
+
+    int n = read(fd, p->buf + p->buf_used, sizeof(p->buf) - p->buf_used);
+    if (n < 0)
+    {
+        std2_continue_return(p->return_id, 0, 0);
+        p->return_id = 0;
+        return;
+    }
+    p->buf_used += n;
+
+    struct inotify_event* ev = parse_event(p);
+    if (ev)
+    {
+        std2_continue_return(p->return_id, 0, ev);
+        p->return_id = 0;
+    }
+    else
+    {
+        /* Didn't got a full event so wait for more data. */
+        struct std2_callback cb;
+        cb.flags = STD2_CALLBACK_READ;
+        cb.fd = p->fd;
+        cb.user = p;
+        cb.func = read_cb;
+        std2_yield_callback(&cb);
+    }
+}
+
+static void read_continue(int id, void* ret, void* arg0, void* arg1)
+{
+    *(void**)ret = arg1;
 }
 
 static void wrap_read(void* ret, void* const * args)
 {
     struct inotify* p = args[0];
+
+    /* Only one read is allowed at a time. */
+
+    if (p->return_id)
+    {
+        *(void**)ret = 0;
+        return;
+    }
+
+    /* If there is already an event in buffer, just return it. */
+
+    struct inotify_event* ev = parse_event(p);
+    if (ev)
+    {
+        *(void**)ret = ev;
+        return;
+    }
+
+    /* Yield read callback and delay return. */
 
     struct std2_callback cb;
     cb.flags = STD2_CALLBACK_READ;
@@ -92,7 +150,7 @@ static void wrap_read(void* ret, void* const * args)
     cb.func = read_cb;
     std2_yield_callback(&cb);
 
-    *(void**)ret = 0;
+    p->return_id = std2_delay_return(read_continue, p);
 }
 
 static void wrap_event_wd(void* ret, void* const* args)
@@ -155,7 +213,7 @@ STD2_END_CONST_LIST()
 STD2_BEGIN_FUNC_LIST(inotify)
     STD2_FUNC("init",         "inotify", "",             wrap_inotify)
     STD2_FUNC("add_watch",    "i",       "inotify cs i", wrap_add_watch)
-    //STD2_FUNC("rm_watch",  "",        "inotify i",    wrap_rm_watch)
+    STD2_FUNC("rm_watch",     "i",       "inotify i",    wrap_rm_watch)
     STD2_FUNC("read",         "event",   "inotify",      wrap_read)
     STD2_FUNC("event_wd",     "i",       "event",        wrap_event_wd)
     STD2_FUNC("event_mask",   "i",       "event",        wrap_event_mask)

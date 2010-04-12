@@ -10,7 +10,8 @@ env.Append(CPPPATH=['include'])
 env.Append(LINKFLAGS=['-rdynamic'])
 env.Append(CPPDEFINES=[("STD2_MODULE_PATH", '\\"%s\\"' % modpath)])
 
-src = ['src/std2.c', 'src/modules.c', 'src/buffer.c']
+src = ['src/std2.c', 'src/modules.c', 'src/buffer.c', 'src/delayed.c',
+       'src/fork.c']
 
 if True:
   env.Append(CPPDEFINES=[("STD2_TESTMOD", 1)])
@@ -33,6 +34,9 @@ src += [env.StaticObject('modules/posix.c')]
 
 env.Append(CPPDEFINES=[("STD2_INOTIFY", 1)])
 src += [env.StaticObject('modules/inotify.c')]
+
+env.Append(CPPDEFINES=[("STD2_EXECMEM", 1)])
+src += [env.StaticObject('modules/execmem.c')]
 
 env.Append(CPPDEFINES=[("STD2_READLINE", 1)])
 env.SharedLibrary("std2_readline", ['modules/readline.c'], LIBS=['readline'])

@@ -1,5 +1,6 @@
 #include "std2priv.h"
 #include "buffer.h"
+#include "fork.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -9,57 +10,9 @@
 #include <errno.h>
 #include <stdio.h>
 
+extern int std2_last_delay_id;
 extern const struct std2_module* std2_modules[];
-
-typedef struct request_s
-{
-    int id;
-    int fork_id;
-    buffer buffer;
-    struct std2_param ret_type;
-} request;
-
-typedef struct fork_state_s
-{
-    int fork_pid;
-    int to_client_fd[2]; // first one for reading, second one for writing
-    int to_host_fd[2];
-
-    buffer in_buffer;
-    buffer out_buffer;
-
-    int next_id;
-} fork_state;
-
-static int         fork_count;
-static fork_state* forks;
-
-static void load_module(int mod)
-{
-    const struct std2_module* old_m = std2_modules[mod];
-    if (old_m->functions)
-        return;
-
-    char name[128];
-    snprintf(name, sizeof(name), "%s/libstd2_%s.so", STD2_MODULE_PATH, old_m->name);
-
-    void* handle = dlopen(name, RTLD_NOW);
-    if (!handle)
-        fprintf(stderr, "%s load error: %s\n", name, dlerror());
-
-    char symname[128];
-    snprintf(symname, sizeof(symname), "std2_module_%s", old_m->name);
-    void* new_m = dlsym(handle, symname);
-    if (!new_m)
-    {
-        fprintf(stderr, "invalid std2 module: %s symbol not found: %s\n", name, symname);
-        abort();
-    }
-
-    std2_modules[mod] = new_m;
-
-    // TODO: handle is leaked (there's no unload support)
-}
+void std2_load_module(int m);
 
 void std2_init()
 {
@@ -86,7 +39,7 @@ void std2_list_modules(const char** names, int* count)
     if (!count) \
         return; \
 \
-    load_module(mod); \
+    std2_load_module(mod); \
     const struct std2_module* m = std2_modules[mod]; \
 \
     int limit = *count; \
@@ -126,7 +79,7 @@ int std2_find_module(const char* name)
 
 int std2_find_class(int module, const char* name)
 {
-    load_module(module);
+    std2_load_module(module);
     const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->classes[i].name; i++)
@@ -137,7 +90,7 @@ int std2_find_class(int module, const char* name)
 
 int std2_find_const(int module, const char* name)
 {
-    load_module(module);
+    std2_load_module(module);
     const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->consts[i].name; i++)
@@ -148,7 +101,7 @@ int std2_find_const(int module, const char* name)
 
 int std2_find_function(int module, const char* name)
 {
-    load_module(module);
+    std2_load_module(module);
     const struct std2_module* m = std2_modules[module];
     int i;
     for (i = 0; m->functions[i].name; i++)
@@ -162,7 +115,7 @@ static const struct std2_function* get_function(int mod, int func)
     assert(mod >= 0);
     assert(func >= 0);
 
-    load_module(mod);
+    std2_load_module(mod);
 
     const struct std2_module* m = std2_modules[mod];
     const struct std2_function* f = &m->functions[func];
@@ -175,7 +128,7 @@ static const struct std2_class* get_class(int mod, int clas)
     assert(mod >= 0);
     assert(clas >= 0);
 
-    load_module(mod);
+    std2_load_module(mod);
 
     const struct std2_module* m = std2_modules[mod];
     const struct std2_class* c = &m->classes[clas];
@@ -188,7 +141,7 @@ static const struct std2_const* get_const(int mod, int cons)
     assert(mod >= 0);
     assert(cons >= 0);
 
-    load_module(mod);
+    std2_load_module(mod);
 
     const struct std2_module* m = std2_modules[mod];
     const struct std2_const* c = &m->consts[cons];
@@ -333,207 +286,102 @@ const void* std2_get_const(int m, int c)
     return &cc->ivalue;
 }
 
-static int has_callback;
-static struct std2_callback callback;
+int std2_get_module_flags(int m)
+{
+    std2_load_module(m);
+    return std2_modules[m]->flags;
+}
+
+/*
+ * Callbacks
+ */
+
+static int                   num_callbacks;
+static struct std2_callback* callbacks;
 
 void std2_yield_callback(struct std2_callback* cb)
 {
-    assert(!has_callback);
-    callback = *cb;
-    has_callback = 1;
+    num_callbacks++;
+    callbacks = realloc(callbacks, sizeof(struct std2_callback) * num_callbacks);
+    callbacks[num_callbacks-1] = *cb;
 }
 
-static void read_cb(void* ret, int fd, int mask, void* user);
-
-static void yield_read_callback(fork_state* fs, request* req)
+int std2_get_callback(struct std2_callback* cb)
 {
-    struct std2_callback cb;
-    cb.flags = STD2_CALLBACK_READ | STD2_CALLBACK_ERROR | STD2_CALLBACK_ABORT;
-    cb.fd    = fs->to_host_fd[0];
-    cb.user  = req;
-    cb.func  = read_cb;
-    std2_yield_callback(&cb);
+    if (!num_callbacks)
+        return 0;
+    *cb = callbacks[--num_callbacks];
+    return 1;
 }
 
-static void read_cb(void* ret, int fd, int mask, void* user)
-{
-    request* req = user;
-    fork_state* fs = &forks[req->fork_id-1];
-
-    if (mask & STD2_CALLBACK_ABORT)
-    {
-        assert(!"abort not implemented");
-        abort();
-        return;
-    }
-
-    buffer_reserve(&req->buffer, 1024);
-    int closed = read_buffer_append(fd, &req->buffer, 1);
-    if (closed)
-    {
-        struct std2_callback cb;
-        cb.flags = STD2_CALLBACK_FORK_ERROR;
-        std2_yield_callback(&cb);
-        return;
-    }
-
-    if (buffer_avail(&req->buffer) < 4)
-    {
-        yield_read_callback(fs, req);
-        return;
-    }
-
-    int ret_size = *(std2_int32*)req->buffer.data;
-
-    if (buffer_avail(&req->buffer) < 4 + ret_size)
-    {
-        yield_read_callback(fs, req);
-        return;
-    }
-
-    void* p = (char*)req->buffer.data + 4;
-
-    switch (req->ret_type.type)
-    {
-    case STD2_INT32:
-        *(std2_int32*)ret = *(std2_int32*)p;
-        p = (char*)p + 4;
-        break;
-
-    case STD2_C_STRING:
-        {
-            int size = *(int*)p;
-            p = (char*)p + 4;
-            *(const char**)ret = p;
-            p = (char*)p + size;
-        }
-        break;
-
-    case STD2_INSTANCE:
-        *(void**)ret = *(void**)p;
-        p = (char*)p + sizeof(void*);
-        break;
-    }
-}
-
-static void write_cb(void* ret, int fd, int mask, void* user)
-{
-    request* req = user;
-    fork_state* fs = &forks[req->fork_id-1];
-
-    (void)ret;
-
-    if (mask & STD2_CALLBACK_ABORT)
-    {
-        assert(!"abort not implemented");
-        abort();
-        return;
-    }
-
-    int r = write_buffer(fd, &req->buffer);
-    if (r < 0)
-    {
-        fprintf(stderr, "std2: write error: %s\n", strerror(errno));
-        abort();
-    }
-
-    if (req->buffer.pos < req->buffer.size)
-    {
-        // Didn't write everything => wait for next write access.
-
-        struct std2_callback cb;
-        cb.flags = STD2_CALLBACK_WRITE | STD2_CALLBACK_ABORT;
-        cb.fd    = fs->to_client_fd[1];
-        cb.user  = req;
-        cb.func  = write_cb;
-        std2_yield_callback(&cb);
-        return;
-    }
-
-    // Request written, wait for response.
-
-    req->buffer.pos = 0;
-    req->buffer.size = 0;
-    yield_read_callback(fs, req);
-}
+/*
+ * Calls.
+ */
 
 int std2_call(int fork, int mod, int func, void* ret, void* const * args)
 {
     const struct std2_function* f = get_function(mod, func);
 
-    has_callback = 0;
+    std2_last_delay_id = 0;
+
+    /* Without fork, this is trivial. */
 
     if (fork == 0)
     {
         f->func(ret, args);
+        return std2_last_delay_id;
     }
-    else
+
+    /* Forked. */
+
+    request* req = new_request(fork, mod, func);
+
+    fork_state* fs = get_fork(fork);
+
+    int size_pos = fs->out_buffer.size;
+    buffer_append_32(&fs->out_buffer, 0); // size of param block
+
+    int param_count = std2_get_param_count(mod, func);
+    int i;
+    for (i = 0; i < param_count; i++)
     {
-        fork_state* fs = &forks[fork-1];
-
-        request* req = malloc(sizeof(request));
-        memset(req, 0, sizeof(request));
-
-        req->fork_id = fork;
-        req->id = fs->next_id++;
-
-        buffer_append_32(&req->buffer, 'c');
-        buffer_append_32(&req->buffer, req->id);
-        buffer_append_32(&req->buffer, mod);
-        buffer_append_32(&req->buffer, func);
-        int size_pos = req->buffer.size;
-        buffer_append_32(&req->buffer, 0); // size of param block
-
-        int param_count = std2_get_param_count(mod, func);
-        int i;
-        for (i = 0; i < param_count; i++)
+        struct std2_param p = std2_get_param_type(mod, func, i);
+        switch (p.type)
         {
-            struct std2_param p = std2_get_param_type(mod, func, i);
-            switch (p.type)
-            {
             case STD2_INT32:
-                buffer_append_32(&req->buffer, *(int*)args[i]);
+                buffer_append_32(&fs->out_buffer, *(int*)args[i]);
                 break;
 
             case STD2_C_STRING:
                 {
                     int l = strlen((char*)args[i]) + 1;
                     int n = (l + 3) & ~3;
-                    buffer_append_32(&req->buffer, n);
-                    buffer_append_data(&req->buffer, (char*)args[i], l);
-                    buffer_append_alignment(&req->buffer, 4);
+                    buffer_append_32(&fs->out_buffer, n);
+                    buffer_append_data(&fs->out_buffer, (char*)args[i], l);
+                    buffer_append_alignment(&fs->out_buffer, 4);
                 }
                 break;
 
             case STD2_INSTANCE:
-                buffer_append_data(&req->buffer, &args[i], sizeof(void*));
+                buffer_append_data(&fs->out_buffer, &args[i], sizeof(void*));
                 break;
 
             default:
                 fprintf(stderr, "std2: (b) unknown type %d\n", p.type);
                 abort();
-            }
         }
-
-        req->ret_type = std2_get_return_type(mod, func);
-
-        *(int*)((char*)req->buffer.data + size_pos) = req->buffer.size - size_pos - 4;
-
-        struct std2_callback cb;
-        cb.flags = STD2_CALLBACK_WRITE | STD2_CALLBACK_ABORT;
-        cb.fd    = fs->to_client_fd[1];
-        cb.user  = req;
-        cb.func  = write_cb;
-        std2_yield_callback(&cb);
     }
 
-    return has_callback;
+    *(int*)((char*)fs->out_buffer.data + size_pos) = fs->out_buffer.size - size_pos - 4;
+
+    req->ret_type = std2_get_return_type(mod, func);
+    req->return_id = std2_delay_return(0, req);
+
+    return std2_last_delay_id;
 }
 
-int std2_unrefer(int fork, int mod, int clas, void* ptr)
+void std2_unrefer(int fork, int mod, int clas, void* ptr)
 {
-    has_callback = 0;
-
     if (fork == 0)
     {
         std2_unrefer_func f = get_class(mod, clas)->unrefer;
@@ -542,255 +390,11 @@ int std2_unrefer(int fork, int mod, int clas, void* ptr)
     }
     else
     {
-        fork_state* fs = &forks[fork-1];
-
-        request* req = malloc(sizeof(request));
-        memset(req, 0, sizeof(request));
-
-        req->fork_id = fork;
-        req->id = fs->next_id++;
-
-        buffer_append_32(&req->buffer, 'u');
-        buffer_append_32(&req->buffer, 0);
-        buffer_append_32(&req->buffer, mod);
-        buffer_append_32(&req->buffer, clas);
-        buffer_append_data(&req->buffer, &ptr, sizeof(void*));
-
-        struct std2_callback cb;
-        cb.flags = STD2_CALLBACK_WRITE | STD2_CALLBACK_ABORT;
-        cb.fd    = fs->to_client_fd[1];
-        cb.user  = req;
-        cb.func  = write_cb;
-        std2_yield_callback(&cb);
+        new_unrefer_request(fork, mod, clas, ptr);
     }
-
-    return has_callback;
 }
 
-struct std2_callback std2_get_callback()
+void std2_call_callback(struct std2_callback* cb, int mask)
 {
-    assert(has_callback);
-    return callback;
-}
-
-int std2_call_callback(struct std2_callback* cb, void* ret, int mask)
-{
-    has_callback = 0;
-    cb->func(ret, cb->fd, mask, cb->user);
-    return has_callback;
-}
-
-int std2_get_module_flags(int m)
-{
-    load_module(m);
-    return std2_modules[m]->flags;
-}
-
-static int current_fork_id;
-
-int std2_fork()
-{
-    fork_count++;
-    forks = realloc(forks, sizeof(fork_state) * fork_count);
-
-    fork_state* fs = &forks[fork_count-1];
-    memset(fs, 0, sizeof(fork_state));
-
-    if (pipe(fs->to_client_fd) < 0)
-    {
-        // TODO:
-        abort();
-    }
-
-    if (pipe(fs->to_host_fd) < 0)
-    {
-        // TODO:
-        abort();
-    }
-
-    int pid = fork();
-    if (pid < 0)
-    {
-        fprintf(stderr, "std2: fork() failed\n");
-        abort();
-    }
-
-    if (pid != 0)
-    {
-        fs->fork_pid = pid;
-        close(fs->to_client_fd[0]);
-        close(fs->to_host_fd[1]);
-    }
-    else
-    {
-        // Child.
-
-        current_fork_id = fork_count;
-
-        close(fs->to_client_fd[1]);
-        close(fs->to_host_fd[0]);
-
-        while (1)
-            std2_process_request();
-    }
-
-    return fork_count;
-}
-
-void std2_unfork(int f)
-{
-    assert(f);
-    fork_state* fs = &forks[f-1];
-
-    fprintf(stderr, "FORK CLOSED %d\n", f);
-
-    close(fs->to_client_fd[1]);
-    close(fs->to_host_fd[0]);
-
-    buffer_free(&fs->in_buffer);
-    buffer_free(&fs->out_buffer);
-}
-
-int std2_current_fork_fd()
-{
-    assert(current_fork_id > 0);
-    fork_state* fs = &forks[current_fork_id-1];
-    return fs->to_client_fd[0];
-}
-
-void std2_process_request()
-{
-    fork_state* fs = &forks[current_fork_id-1];
-
-    if (read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, 20))
-    {
-        fprintf(stderr, "std2: child got disconnection\n");
-        exit(1);
-    }
-
-    int marker = buffer_read_32(&fs->in_buffer);
-    int req_id = buffer_read_32(&fs->in_buffer);
-
-    if (marker == 'c')
-    {
-        int m = buffer_read_32(&fs->in_buffer);
-        int f = buffer_read_32(&fs->in_buffer);
-        int params_size = buffer_read_32(&fs->in_buffer);
-
-        read_buffer_append(fs->to_client_fd[0], &fs->in_buffer, params_size);
-
-        // Construct parameters.
-
-        void* args[16];
-
-        void* start_ptr = (char*)fs->in_buffer.data + fs->in_buffer.pos;
-        void* end_ptr = (char*)fs->in_buffer.data + fs->in_buffer.size;
-        void* p = start_ptr;
-
-        int param_count = std2_get_param_count(m, f);
-        int i;
-        for (i = 0; i < param_count; i++)
-        {
-            struct std2_param t = std2_get_param_type(m, f, i);
-            switch (t.type)
-            {
-                case STD2_INT32:
-                    args[i] = p;
-                    p = (char*)p + 4;
-                    break;
-
-                case STD2_C_STRING:
-                    {
-                        int size = *(int*)p;
-                        p = (char*)p + 4;
-                        args[i] = p;
-                        p = (char*)p + size;
-                    }
-                    break;
-
-                case STD2_INSTANCE:
-                    args[i] = *(void**)p;
-                    p = (char*)p + sizeof(void*);
-                    break;
-
-                default:
-                    fprintf(stderr, "std2: (c) unknown type %d\n", t.type);
-                    abort();
-            }
-
-            assert(p <= end_ptr);
-        }
-
-        fs->in_buffer.pos += (char*)p - (char*)start_ptr;
-
-        // Do the call.
-
-        const struct std2_function* func = get_function(m, f);
-        struct std2_param ret = std2_get_return_type(m, f);
-
-        has_callback = 0;
-
-        int size_pos = fs->out_buffer.pos;
-        buffer_append_32(&fs->out_buffer, 0); // size will be filled afterwards
-
-        switch (ret.type)
-        {
-            case STD2_VOID:
-                func->func(0, args);
-                break;
-
-            case STD2_INT32:
-                {
-                    std2_int32 v;
-                    func->func(&v, args);
-                    buffer_append_32(&fs->out_buffer, v);
-                }
-                break;
-
-            case STD2_C_STRING:
-                {
-                    const char* v;
-                    func->func(&v, args);
-
-                    int l = strlen(v) + 1;
-                    int n = (l + 3) & ~3;
-                    buffer_append_32(&fs->out_buffer, n);
-                    buffer_append_data(&fs->out_buffer, v, l);
-                    buffer_append_alignment(&fs->out_buffer, 4);
-                }
-                break;
-
-            case STD2_INSTANCE:
-                {
-                    void* v;
-                    func->func(&v, args);
-                    buffer_append_data(&fs->out_buffer, &v, sizeof(void*));
-                }
-                break;
-
-            default:
-                fprintf(stderr, "std2: (a) unknown type %d\n", ret.type);
-                abort();
-        }
-
-        assert(!has_callback);
-
-        *(int*)((char*)fs->out_buffer.data + size_pos) =
-            fs->out_buffer.size - size_pos - 4;
-
-        while (buffer_avail(&fs->out_buffer))
-            write_buffer(fs->to_host_fd[1], &fs->out_buffer);
-
-        buffer_compact(&fs->in_buffer);
-        buffer_compact(&fs->out_buffer);
-    }
-    else if (marker == 'u')
-    {
-        assert(!"todo");
-    }
-    else
-    {
-        fprintf(stderr, "std2: protocol error, bad marker %d\n", marker);
-        abort();
-    }
+    cb->func(cb->fd, mask, cb->user);
 }

@@ -20,6 +20,7 @@ void std2_buffer_append_64(buffer* b, std2_int64 v);
 std2_int32 std2_buffer_read_32(buffer* b);
 int std2_buffer_avail(buffer* b);
 void std2_buffer_compact(buffer* b);
+void* std2_buffer_cursor(buffer* b);
 int std2_write_buffer(int fd, buffer* buf);
 int std2_read_buffer_append(int fd, buffer* buf, int at_least);
 
@@ -32,6 +33,7 @@ int std2_read_buffer_append(int fd, buffer* buf, int at_least);
 #define buffer_read_32          std2_buffer_read_32
 #define buffer_avail            std2_buffer_avail
 #define buffer_compact          std2_buffer_compact
+#define buffer_cursor           std2_buffer_cursor
 #define write_buffer            std2_write_buffer
 #define read_buffer_append      std2_read_buffer_append
 

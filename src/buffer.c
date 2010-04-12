@@ -87,6 +87,12 @@ void std2_buffer_compact(buffer* b)
     b->pos = 0;
 }
 
+void* std2_buffer_cursor(buffer* b)
+{
+    assert(b->pos >= 0 && b->pos <= b->size);
+    return (char*)b->data + b->pos;
+}
+
 int std2_write_buffer(int fd, buffer* buf)
 {
     int r = write(fd, (char*)buf->data + buf->pos, buf->size - buf->pos);

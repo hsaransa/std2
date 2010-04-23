@@ -20,6 +20,7 @@ STD2_MODULE_DYN_STUB(cuda)
 STD2_MODULE_DYN_STUB(openssl)
 STD2_MODULE_DYN_STUB(gl)
 STD2_MODULE_DYN_STUB(gtk)
+STD2_MODULE_DYN_STUB(ncurses)
 
 const struct std2_module* std2_modules[] = {
 #ifdef STD2_TESTMOD
@@ -66,6 +67,9 @@ const struct std2_module* std2_modules[] = {
 #ifdef STD2_EXECMEM
     &std2_module_execmem,
 #endif
+#ifdef STD2_NCURSES
+    &std2_module_ncurses,
+#endif
     0
 };
 
@@ -80,7 +84,10 @@ void std2_load_module(int mod)
 
     void* handle = dlopen(name, RTLD_NOW);
     if (!handle)
+    {
         fprintf(stderr, "%s load error: %s\n", name, dlerror());
+        abort();
+    }
 
     char symname[128];
     snprintf(symname, sizeof(symname), "std2_module_%s", old_m->name);

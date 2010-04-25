@@ -20,6 +20,7 @@ STD2_MODULE_DYN_STUB(cuda)
 STD2_MODULE_DYN_STUB(openssl)
 STD2_MODULE_DYN_STUB(gl)
 STD2_MODULE_DYN_STUB(gtk)
+STD2_MODULE_DYN_STUB(xcb)
 
 const struct std2_module* std2_modules[] = {
 #ifdef STD2_TESTMOD
@@ -65,6 +66,9 @@ const struct std2_module* std2_modules[] = {
 #endif
 #ifdef STD2_EXECMEM
     &std2_module_execmem,
+#endif
+#ifdef STD2_XCB
+    &std2_module_xcb,
 #endif
     0
 };

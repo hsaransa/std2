@@ -83,6 +83,10 @@ env2.ParseConfig("pkg-config xcb --cflags --libs")
 env2.ParseConfig("pkg-config xcb-keysyms --cflags --libs")
 env2.SharedLibrary("std2_xcb", ['modules/xcb.c'])
 
+env.Append(CPPDEFINES=[("STD2_NCURSES", 1)])
+env2 = env.Clone()
+env2.SharedLibrary("std2_ncurses", ['modules/ncurses.c'], LIBS=['ncurses'])
+
 env.StaticLibrary('std2', src)
 
 env.Append(LIBS=['dl'])

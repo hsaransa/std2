@@ -86,6 +86,11 @@ static void wrap_strftime(void* ret, void* const * args)
     *(std2_int32*)ret = v;
 }
 
+static void wrap_exit(void* ret, void* const* args)
+{
+    exit(*(int*)args[0]);
+}
+
 // move to posix?
 #if 0
 static void wrap_strptime(void* ret, void* const * args)
@@ -124,6 +129,7 @@ STD2_BEGIN_FUNC_LIST(libc)
     STD2_FUNC("localtime",  "tm", "l",         wrap_localtime)
     STD2_FUNC("strftime",   "i",  "buf cs tm", wrap_strftime)
     //STD2_FUNC("strptime",   "cs", "cs cs tm",  wrap_strptime)
+    STD2_FUNC("exit",        "",  "i",         wrap_exit)
 
     STD2_FUNC("isalnum",    "i", "i", wrap_isalnum)
     STD2_FUNC("isalpha",    "i", "i", wrap_isalpha)

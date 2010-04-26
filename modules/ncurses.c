@@ -51,10 +51,11 @@ static int getch_return_id;
 
 static void read_cb(int fd, int mask, void* user)
 {
+    nodelay(screen, 1);
     int k = getch();
+    nodelay(screen, 0);
     if (k != ERR)
     {
-        nodelay(screen, 0);
         std2_continue_return(getch_return_id, 0, (void*)k);
         getch_return_id = 0;
         return;
@@ -82,6 +83,7 @@ static void wrap_getch(void* ret, void* const* args)
 
     nodelay(screen, 1);
     int k = getch();
+    nodelay(screen, 0);
     if (k != ERR)
     {
         *(int*)ret = k;
@@ -105,6 +107,31 @@ static void wrap_printw(void* ret, void* const* args)
 static void wrap_addch(void* ret, void* const* args)
 {
     *(int*)ret = addch(*(int*)args[0]);
+}
+
+static void wrap_addstr(void* ret, void* const* args)
+{
+    *(int*)ret = addstr((const char*)args[0]);
+}
+
+static void wrap_erase(void* ret, void* const* args)
+{
+    *(int*)ret = erase();
+}
+
+static void wrap_clear(void* ret, void* const* args)
+{
+    *(int*)ret = clear();
+}
+
+static void wrap_clrtobot(void* ret, void* const* args)
+{
+    *(int*)ret = clrtobot();
+}
+
+static void wrap_clrtoeol(void* ret, void* const* args)
+{
+    *(int*)ret = clrtoeol();
 }
 
 static void wrap_getmaxx(void* ret, void* const* args)
@@ -271,19 +298,25 @@ STD2_BEGIN_CONST_LIST(ncurses)
     STD2_CONST("KEY_MOUSE", INT, KEY_MOUSE)
     STD2_CONST("KEY_RESIZE", INT, KEY_RESIZE)
     STD2_CONST("KEY_EVENT", INT, KEY_EVENT)
+    STD2_CONST("KEY_MAX", INT, KEY_MAX)
 STD2_END_CONST_LIST()
 
 STD2_BEGIN_FUNC_LIST(ncurses)
     STD2_FUNC("initscr", "WINDOW", "", wrap_initscr)
     STD2_FUNC("raw",     "i",      "", wrap_raw)
     STD2_FUNC("cbreak",  "i",      "", wrap_cbreak)
-    STD2_FUNC("keypad",  "i",      "WINDOW i", wrap_raw)
+    STD2_FUNC("keypad",  "i",      "WINDOW i", wrap_keypad)
     STD2_FUNC("noecho",  "i",      "", wrap_noecho)
     STD2_FUNC("refresh", "i",      "", wrap_refresh)
     STD2_FUNC("getch",   "i",      "", wrap_getch)
     STD2_FUNC("endwin",  "i",      "", wrap_endwin)
     STD2_FUNC("printw",  "i",      "cs", wrap_printw)
     STD2_FUNC("addch",   "i",      "i", wrap_addch)
+    STD2_FUNC("addstr",   "i",     "cs", wrap_addstr)
+    STD2_FUNC("erase",   "i",      "cs", wrap_erase)
+    STD2_FUNC("clear",   "i",      "cs", wrap_clear)
+    STD2_FUNC("clrtobot","i",      "", wrap_clrtobot)
+    STD2_FUNC("clrtoeol","i",      "", wrap_clrtoeol)
     STD2_FUNC("getmaxx", "i",      "", wrap_getmaxx)
     STD2_FUNC("getmaxy", "i",      "", wrap_getmaxy)
     STD2_FUNC("getx",    "i",      "", wrap_getx)

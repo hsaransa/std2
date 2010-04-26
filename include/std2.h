@@ -114,6 +114,8 @@ int std2_get_return();
 // Perform the actual return, returns zero on success. Non-zero means
 // that fork crashed.
 int std2_do_return(int id, void* ret);
+// Abort call.
+void std2_abort_return(int id);
 
 #ifdef __cplusplus
 }

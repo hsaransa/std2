@@ -49,7 +49,6 @@ struct std2_module
 
 int  std2_delay_return();
 void std2_continue_return(int id, std2_return_func, void*);
-void std2_abort_return(int id);
 
 int  std2_current_fork_fd();
 void std2_process_request();

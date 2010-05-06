@@ -1,6 +1,6 @@
 std2 is a standard standard library. Primarily targeted for puuro interpreter.
 
-I was fustrated that I couldn't find an easy-to-steal standard library anywhere
-so I decided to write my own. std2 simply tries to wrap C libraries in a
-crash-safe and non-blocking way. Neither of these can't be always guaranteed,
+I was frustrated that I couldn't find an easy-to-steal standard library
+anywhere so I decided to write my own. std2 simply tries to wrap C libraries in
+a crash-safe and non-blocking way. Neither of these can't be always guaranteed,
 so std2 also supports forking any module to a different process.
